@@ -24,6 +24,8 @@ export type CategoryFilter = Category | "All";
 export interface HighlightBullet {
   title: string;
   desc: string;
+  /** Optional Thailand-specific relevance callout. */
+  thailandRelevance?: string;
 }
 
 /**
@@ -46,6 +48,17 @@ export interface UINewsArticle {
   keyHighlightsTh: HighlightBullet[];
   originalSourceUrl?: string;
   imageUrl?: string | null;
+  trendsOverviewEn: string[];
+  trendsOverviewTh: string[];
+}
+
+/**
+ * Flexible article shape used inside App.tsx. Allows string ids for
+ * locally-generated entries (e.g. user-added via the summarizer SSE
+ * stream) on top of the numeric ids coming from Supabase.
+ */
+export interface NewsArticle extends Omit<UINewsArticle, "id"> {
+  id: number | string;
 }
 
 /** Raw row shape returned by Supabase. */

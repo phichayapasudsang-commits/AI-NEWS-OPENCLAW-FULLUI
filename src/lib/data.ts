@@ -20,6 +20,16 @@ const CATEGORY_SET: ReadonlySet<string> = new Set([
   "Research",
 ]);
 
+/** Normalize a raw category string from the DB into the typed Category. */
+function normalizeCategory(raw: string): Category {
+  const c = (raw || "").trim().toLowerCase();
+  if (c === "mcp") return "MCP";
+  if (c === "agent") return "Agent";
+  if (c === "memory") return "Memory";
+  if (CATEGORY_SET.has(raw)) return raw as Category;
+  return "Research";
+}
+
 /**
  * Split a pipeline body string into bullet items. Each line that starts
  * with "-" (with optional leading whitespace) is a bullet. Lines without
@@ -37,9 +47,7 @@ export function parseBullets(body: string): string[] {
 
 /** Shape a raw row into the UI model. */
 export function toUINewsArticle(row: RawArticleRow): UINewsArticle {
-  const category: Category = CATEGORY_SET.has(row.category)
-    ? (row.category as Category)
-    : "Research";
+  const category = normalizeCategory(row.category);
 
   const highlightsEnRaw = parseBullets(row.body_en);
   const highlightsThRaw = parseBullets(row.body_th);
@@ -58,6 +66,8 @@ export function toUINewsArticle(row: RawArticleRow): UINewsArticle {
     executiveSummaryTh: row.summary_th || "",
     keyHighlightsEn: highlightsEnRaw.map(toHighlight),
     keyHighlightsTh: highlightsThRaw.map(toHighlight),
+    trendsOverviewEn: [],
+    trendsOverviewTh: [],
     originalSourceUrl: row.original_url || undefined,
     imageUrl: row.image_url ?? undefined,
   };
@@ -99,3 +109,14 @@ function formatSummarizedDate(iso?: string): string {
     year: "numeric",
   });
 }
+
+/**
+ * Stub fallback dataset. Kept here so App.tsx can fall back to a
+ * static list when Supabase is unreachable or while the user toggles
+ * the local "reset to defaults" action. Phase B will replace this with
+ * a proper fetch + delete flow backed by Supabase.
+ */
+export const ARTICLES_DATA: UINewsArticle[] = [];
+
+/** Empty-state placeholder used while the dashboard is loading. */
+export const EMPTY_ARTICLES: UINewsArticle[] = [];

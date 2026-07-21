@@ -1,3 +1,8 @@
 {
-  "rewrites": []
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://ai-news-qvi0.onrender.com/api/:path*"
+    }
+  ]
 }
