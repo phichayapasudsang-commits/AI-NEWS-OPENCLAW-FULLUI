@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, FormEvent, MouseEvent } from 'react';
+import { useState, useEffect, useCallback, MouseEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Sun,
@@ -18,14 +18,13 @@ import {
   Calendar,
   ExternalLink,
   X,
-  Plus,
   ArrowUpRight,
   RefreshCw,
   Globe,
-  ChevronRight,
   Info
 } from 'lucide-react';
 import { ARTICLES_DATA } from './lib/data';
+import { fetchArticles } from './lib/supabase';
 import { NewsArticle, Category, CategoryFilter, HighlightBullet } from './lib/types';
 
 // UI Dictionary for dual-language support
@@ -60,18 +59,6 @@ const DICTIONARY = {
     languageToggle: 'Change to ภาษาไทย',
     themeLight: 'Light Mode',
     themeDark: 'Dark Mode',
-    addArticleTitle: 'Summon AI Agent Summarizer',
-    addArticleDesc: 'Paste an article URL or text content. An AI agent will parse, translate, and synthesize a high-fidelity bilingual summary in real-time.',
-    titleLabel: 'Article Title (Optional)',
-    titlePlaceholder: 'e.g. OpenAI reveals Project Strawberry core architecture details...',
-    contentLabel: 'News Content or URL to Summarize',
-    contentPlaceholder: 'Paste news report, paper abstract, or tech specification here...',
-    categoryLabel: 'Sector Category',
-    submitBtn: 'Execute AI Summarization',
-    summarizing: 'Synthesizing with Minimax-m3...',
-    successMsg: 'Article summarized successfully and appended to your feed!',
-    howToTitle: 'Interactive Guidelines',
-    howToDesc: 'Use the top-right switcher to toggle between English and Thai dynamically. Change color modes (black/white) to minimize eye strain. Click [Read Summary] to review core structural breakdowns.',
     source: 'Source',
     readOriginalSource: 'Read Original Source'
   },
@@ -105,18 +92,6 @@ const DICTIONARY = {
     languageToggle: 'สลับเป็น English',
     themeLight: 'โหมดสว่าง (ขาว)',
     themeDark: 'โหมดมืด (ดำ)',
-    addArticleTitle: 'เครื่องมือสรุปข่าวสารด้วย AI (สรุปสด)',
-    addArticleDesc: 'วางลิงก์บทความ ข่าวสาร หรือเนื้อหาเทคโนโลยี เอเจนต์ AI จะทำการประมวลผล สลับแปลงวิเคราะห์ภาษาไทย-อังกฤษ เพื่อร่างสรุปบิตต่อบิต',
-    titleLabel: 'หัวข้อข่าว (ไม่จำเป็นต้องระบุก็ได้)',
-    titlePlaceholder: 'เช่น OpenAI เผยกลไกการคิดเลขขั้นสูงของโปรเจกต์ใหม่...',
-    contentLabel: 'เนื้อข่าวที่ต้องการให้ AI สรุป หรือที่อยู่บทความ URL',
-    contentPlaceholder: 'วางเนื้อหาข่าว เทคโนโลยี บทสรุปงานวิจัย หรือสเปคไฟล์ที่ต้องการแปลงที่นี่...',
-    categoryLabel: 'หมวดหมู่เทคโนโลยี',
-    submitBtn: 'ส่งคำสั่งให้ AI วิเคราะห์สังเคราะห์',
-    summarizing: 'กำลังประมวลผลด้วยโมเดล Minimax-m3...',
-    successMsg: 'สังเคราะห์บทสรุปข่าวสารเรียบร้อยแบบสองภาษา!',
-    howToTitle: 'คู่มือวิธีใช้งานระเบียบอินเทอร์เฟซ',
-    howToDesc: 'ใช้ปุ่มสลับภาษาด้านขวาบนเพื่อเปลี่ยนการแสดงผลทันที สามารถคลิกสลับโทนสีดำหรือสีขาวได้ตามที่ถนัดตาเพื่อความสบายตาตลอดวัน คลิก [อ่านบทสรุป] เพื่อดึงโครงสร้างบทวิเคราะห์เชิงลึก',
     source: 'แหล่งข่าว',
     readOriginalSource: 'เปิดดูแหล่งข่าวต้นฉบับ'
   }
@@ -150,25 +125,45 @@ export default function App() {
     localStorage.setItem('agentic-news-list', JSON.stringify(articles));
   }, [articles]);
 
-  // Fetch articles from backend SQLite database on mount
-  useEffect(() => {
-    const loadArticles = async () => {
-      try {
-        const res = await fetch('/api/articles');
-        if (res.ok) {
-          const data = await res.json();
-          if (data && (Array.isArray(data.today) || Array.isArray(data.older))) {
-            const todayList = data.today || [];
-            const olderList = data.older || [];
-            setArticles([...todayList, ...olderList]);
-          }
-        }
-      } catch (e) {
-        console.error('Failed to load articles from DB:', e);
-      }
-    };
-    loadArticles();
+  // Loading + error state for the initial Supabase fetch.
+  const [isLoadingArticles, setIsLoadingArticles] = useState(true);
+  const [articlesFetchError, setArticlesFetchError] = useState<string | null>(null);
+
+  /**
+   * Pull the latest feed from Supabase. We snapshot localStorage first so
+   * user-added entries (with string ids) are never lost; server entries
+   * are tagged with a `srv-` prefix so they cannot collide with future
+   * user-added ids. Server wins on collisions; local-only entries are
+   * appended at the end.
+   */
+  const refreshArticlesFromSupabase = useCallback(async () => {
+    setIsLoadingArticles(true);
+    setArticlesFetchError(null);
+    try {
+      const savedRaw = localStorage.getItem('agentic-news-list');
+      const localArticles: NewsArticle[] = savedRaw ? JSON.parse(savedRaw) : ARTICLES_DATA;
+
+      const serverArticles = await fetchArticles(50);
+      const taggedServer: NewsArticle[] = serverArticles.map((a) => ({
+        ...a,
+        id: `srv-${a.id}`,
+      }));
+      const seen = new Set(taggedServer.map((a) => String(a.id)));
+      const onlyLocal = localArticles.filter((a) => !seen.has(String(a.id)));
+      setArticles([...taggedServer, ...onlyLocal]);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error('[dashboard] Failed to fetch articles from Supabase:', msg);
+      setArticlesFetchError(msg);
+    } finally {
+      setIsLoadingArticles(false);
+    }
   }, []);
+
+  // Fetch from Supabase on mount.
+  useEffect(() => {
+    refreshArticlesFromSupabase();
+  }, [refreshArticlesFromSupabase]);
 
   // Persist theme choice
   useEffect(() => {
@@ -189,125 +184,11 @@ export default function App() {
   const [isRedirectHovered, setIsRedirectHovered] = useState(false);
   const [isBottomCloseHovered, setIsBottomCloseHovered] = useState(false);
 
-  // New Article Form state
-  const [formOpen, setFormOpen] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
-  const [newContent, setNewContent] = useState('');
-  const [newCategory, setNewCategory] = useState<Category>('Agent');
-  
-  // Auto Search & Streaming state
-  const [isUpdatingNews, setIsUpdatingNews] = useState(false);
-  const [streamLogs, setStreamLogs] = useState<string[]>([]);
-  const [showLogsModal, setShowLogsModal] = useState(false);
-
   const t = DICTIONARY[lang] as Record<string, string>;
 
-  const runSummarizeStream = async (content: string, category: Category) => {
-    setIsUpdatingNews(true);
-    setStreamLogs([]);
-    setShowLogsModal(true);
-
-    try {
-      const response = await fetch('/api/summarize', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content,
-          category,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to initialize stream: ${response.statusText}`);
-      }
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      if (!reader) {
-        throw new Error('No body reader available.');
-      }
-
-      let buffer = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed) continue;
-          if (!trimmed.startsWith('data:')) continue;
-          
-          try {
-            const jsonStr = trimmed.slice(5).trim();
-            const event = JSON.parse(jsonStr);
-
-            if (event.type === 'thought') {
-              setStreamLogs((prev) => [...prev, event.text]);
-            } else if (event.type === 'result') {
-              const data = event.data;
-              const id = data.id || `user-ai-news-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-              const currentUTC = new Date();
-              const sTime = `${currentUTC.getDate()} ${currentUTC.toLocaleString('en-US', { month: 'short' })} ${currentUTC.getFullYear()} ${String(currentUTC.getHours()).padStart(2, '0')}:${String(currentUTC.getMinutes()).padStart(2, '0')}`;
-
-              const createdEntry: NewsArticle = {
-                id,
-                titleEn: data.titleEn || (content ? `AI Synthesis: ${category}` : `AI Updates: ${event.category}`),
-                titleTh: data.titleTh || (content ? `การวิเคราะห์โดย AI: ${category}` : `อัพเดต AI: ${event.category}`),
-                category: event.category,
-                publishedDate: data.publishedDate && data.publishedDate !== 'N/A' ? data.publishedDate : 'N/A',
-                summarizedTime: data.summarizedTime || data.summarized_time || sTime,
-                summarizedDate: data.summarizedDate || data.summarized_date || `${currentUTC.getFullYear()}-${String(currentUTC.getMonth() + 1).padStart(2, '0')}-${String(currentUTC.getDate()).padStart(2, '0')}`,
-                snippetEn: data.snippetEn || `Automated update of ${event.category}`,
-                snippetTh: data.snippetTh || `อัพเดตข่าวสารอัตโนมัติเกี่ยวกับ ${event.category}`,
-                executiveSummaryEn: data.executiveSummaryEn || '',
-                executiveSummaryTh: data.executiveSummaryTh || '',
-                keyHighlightsEn: data.keyHighlightsEn || [],
-                keyHighlightsTh: data.keyHighlightsTh || [],
-                trendsOverviewEn: data.trendsOverviewEn || [],
-                trendsOverviewTh: data.trendsOverviewTh || [],
-                originalSourceUrl: data.originalSourceUrl || data.original_source_url || (content.startsWith('http') ? content : undefined),
-                imageUrl: data.imageUrl || data.image_url || ''
-              };
-
-              setArticles((prev) => {
-                if (prev.some((a) => a.id === createdEntry.id || a.titleEn === createdEntry.titleEn)) return prev;
-                return [createdEntry, ...prev];
-              });
-            } else if (event.type === 'error') {
-              setStreamLogs((prev) => [...prev, `❌ Error [${event.category}]: ${event.message}`]);
-            }
-          } catch (e) {
-            console.error('Failed to parse SSE line:', line, e);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching news update stream:', error);
-      setStreamLogs((prev) => [...prev, `❌ Connection error: ${error instanceof Error ? error.message : 'Unknown error'}`]);
-    } finally {
-      setIsUpdatingNews(false);
-    }
-  };
-
   const handleUpdateNews = async () => {
-    const targetCategory: Category = selectedCategory === 'All' ? 'Agent' : selectedCategory;
-    await runSummarizeStream("", targetCategory);
-  };
-
-  const handleSummonSummarizer = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!newContent.trim()) return;
-    setFormOpen(false);
-    await runSummarizeStream(newContent, newCategory);
-    setNewTitle('');
-    setNewContent('');
+    // Pure client-side refresh: re-pull the latest feed from Supabase.
+    await refreshArticlesFromSupabase();
   };
 
   const deleteArticle = async (id: string, e: MouseEvent) => {
@@ -649,150 +530,21 @@ export default function App() {
 
               {/* Quick Instructions & Utility Bar */}
               <div 
-                className="mb-6 flex flex-wrap items-center justify-between gap-3 p-3 bg-white dark:bg-[#111218] border border-black dark:border-zinc-800 rounded-lg"
+                className="mb-6 flex flex-wrap items-center justify-end gap-3 p-3 bg-white dark:bg-[#111218] border border-black dark:border-zinc-800 rounded-lg"
                 style={theme === 'light' ? { backgroundColor: '#e5e5e5' } : undefined}
               >
-                <div className="flex items-start gap-2 max-w-[80%]">
-                  <Info 
-                    className="h-4 w-4 text-black/80 dark:text-zinc-400 shrink-0 mt-0.5" 
-                    style={theme === 'light' ? { color: '#92929a' } : undefined}
-                  />
-                  <div 
-                    className="text-[11px] leading-relaxed text-black/80 dark:text-zinc-400"
-                    style={theme === 'light' ? { color: '#717175' } : undefined}
-                  >
-                    <span className="font-bold">{t.howToTitle}:</span> {t.howToDesc}
-                  </div>
-                </div>
-                
                 <div className="flex gap-2">
                   <button
                     id="update-news-btn"
                     onClick={handleUpdateNews}
-                    disabled={isUpdatingNews}
+                    disabled={isLoadingArticles}
                     className="flex items-center gap-1 px-2.5 py-1 rounded bg-black text-white hover:bg-zinc-900/80 dark:bg-emerald-400 dark:text-[#090a0f] dark:hover:bg-emerald-300 text-[11px] font-mono border border-black dark:border-emerald-400 transition-all disabled:opacity-50 active:scale-95 cursor-pointer shadow-md font-semibold"
                   >
-                    <RefreshCw className={`h-3 w-3 ${isUpdatingNews ? 'animate-spin' : ''}`} />
-                    <span>{lang === 'en' ? 'GET UPDATES' : 'รับข่าวอัพเดต'}</span>
+                    <RefreshCw className={`h-3 w-3 ${isLoadingArticles ? 'animate-spin' : ''}`} />
+                    <span>{lang === 'en' ? 'REFRESH' : 'รีเฟรช'}</span>
                   </button>
-
-                  <button
-                    id="open-summarizer-btn"
-                    onClick={() => setFormOpen(!formOpen)}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-[#0066cc]/10 hover:bg-[#0066cc]/20 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 text-[#0066cc] dark:text-emerald-400 hover:text-[#0055aa] text-[11px] font-mono border border-current transition-all"
-                    style={theme === 'light' ? { borderColor: '#01d9a8', backgroundColor: '#04995d', color: '#032017' } : undefined}
-                  >
-                    <Plus className="h-3 w-3" />
-                    <span>{lang === 'en' ? 'SUMMON AI' : 'เขียนบทสรุปใหม่'}</span>
-                  </button>
-                  
                 </div>
               </div>
-
-              {/* Add Article Form panel */}
-              <AnimatePresence>
-                {formOpen && (
-                  <motion.div
-                    id="summarizer-box"
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="mb-8 overflow-hidden rounded-lg border-2 border-dashed border-black dark:border-zinc-800 bg-white dark:bg-[#111218] p-5 shadow-inner"
-                    style={theme === 'light' ? { backgroundColor: '#FFFBFB' } : undefined}
-                  >
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h3 
-                          className="font-mono text-sm font-bold text-black dark:text-zinc-200"
-                          style={theme === 'light' ? { color: '#363636' } : undefined}
-                        >
-                          {t.addArticleTitle}
-                        </h3>
-                        <p className="text-xs text-black/80 dark:text-zinc-500 mt-1">
-                          {t.addArticleDesc}
-                        </p>
-                      </div>
-                      <button
-                        id="close-form-btn"
-                        onClick={() => setFormOpen(false)}
-                        className="p-1 text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-
-                    <form onSubmit={handleSummonSummarizer} className="space-y-3">
-                      <div>
-                        <label className="block text-[11px] font-mono uppercase tracking-wider text-black/80 dark:text-zinc-500 mb-1">
-                          {t.titleLabel}
-                        </label>
-                        <input
-                          id="new-article-title-input"
-                          type="text"
-                          value={newTitle}
-                          onChange={(e) => setNewTitle(e.target.value)}
-                          placeholder={t.titlePlaceholder}
-                          className="w-full px-3 py-1.5 text-xs rounded border border-black dark:border-zinc-800 bg-white dark:bg-zinc-900/50 text-black dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-[#0066cc] dark:focus:ring-emerald-400"
-                          style={theme === 'light' ? { backgroundColor: '#c6c6c6', color: '#373737' } : undefined}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div className="sm:col-span-2">
-                          <label className="block text-[11px] font-mono uppercase tracking-wider text-black/80 dark:text-zinc-500 mb-1">
-                            {t.contentLabel} *
-                          </label>
-                          <textarea
-                            id="new-article-content-input"
-                            required
-                            value={newContent}
-                            onChange={(e) => setNewContent(e.target.value)}
-                            placeholder={t.contentPlaceholder}
-                            rows={3}
-                            className="w-full px-3 py-1.5 text-xs rounded border border-black dark:border-zinc-800 bg-white dark:bg-zinc-900/50 text-black dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-[#0066cc] dark:focus:ring-emerald-400"
-                            style={theme === 'light' ? { backgroundColor: '#C6C6C6', color: '#000000' } : undefined}
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-[11px] font-mono uppercase tracking-wider text-black/80 dark:text-zinc-500 mb-1">
-                            {t.categoryLabel}
-                          </label>
-                          <select
-                            id="new-article-category-input"
-                            value={newCategory}
-                            onChange={(e) => setNewCategory(e.target.value as Category)}
-                            className="w-full px-3 py-1.5 text-xs rounded border border-black dark:border-zinc-800 bg-white dark:bg-zinc-900/50 text-black dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-[#0066cc] dark:focus:ring-emerald-400"
-                            style={theme === 'light' ? { backgroundColor: '#C6C6C6', color: '#524f4f' } : undefined}
-                          >
-                            {(['Agent', 'Memory', 'MCP', 'Research'] as Category[]).map((cat) => (
-                              <option key={cat} value={cat}>
-                                {t[cat] || cat}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="pt-2 flex items-center justify-end">
-                        <button
-                          id="submit-summarize-btn"
-                          type="submit"
-                          disabled={isUpdatingNews || !newContent.trim()}
-                          className="flex items-center gap-1.5 bg-slate-900 dark:bg-zinc-100 text-white dark:text-[#090a0f] hover:bg-slate-800 dark:hover:bg-zinc-200 disabled:opacity-50 px-4 py-2 rounded text-xs font-mono tracking-wider uppercase transition-all shadow cursor-pointer active:scale-95"
-                          style={theme === 'light' ? { borderWidth: '1px', backgroundColor: '#b6b6b6' } : undefined}
-                        >
-                          {isUpdatingNews && (
-                            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                          )}
-                          <span style={theme === 'light' ? { color: '#050505' } : undefined}>{isUpdatingNews ? t.summarizing : t.submitBtn}</span>
-                        </button>
-                      </div>
-                    </form>
-                  </motion.div>
-                )}
-              </AnimatePresence>
 
               {/* Wireframe Separator */}
               <hr className="border-dashed border-zinc-300 dark:border-zinc-800 mb-8" />
@@ -1095,69 +847,6 @@ export default function App() {
           </div>
         </div>
       </footer>
-
-      {/* Real-time Thought Logs Modal */}
-      <AnimatePresence>
-        {showLogsModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-2xl bg-zinc-950 border border-zinc-800 rounded-lg shadow-2xl overflow-hidden text-zinc-300 font-mono text-xs flex flex-col h-[450px]"
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between px-4 py-3 bg-zinc-900 border-b border-zinc-800">
-                <div className="flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-full bg-red-500/80"></span>
-                  <span className="h-3 w-3 rounded-full bg-yellow-500/80"></span>
-                  <span className="h-3 w-3 rounded-full bg-green-500/80"></span>
-                  <span className="ml-2 font-semibold text-zinc-400 text-[11px]">Agentic Thought Terminal v2.1</span>
-                </div>
-                {(!isUpdatingNews) && (
-                  <button
-                    onClick={() => setShowLogsModal(false)}
-                    className="p-1 text-zinc-500 hover:text-zinc-300 transition-colors"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-
-              {/* Logs Stream Panel */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-2 select-text selection:bg-zinc-800 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
-                {streamLogs.map((log, idx) => (
-                  <div key={idx} className="leading-relaxed border-l-2 border-[#0066cc] dark:border-emerald-500 pl-3 py-0.5 hover:bg-zinc-900/30 transition-colors">
-                    {log}
-                  </div>
-                ))}
-                
-                {isUpdatingNews && (
-                  <div className="flex items-center gap-2 text-[#0066cc] dark:text-emerald-400 italic pl-3 animate-pulse">
-                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                    <span>Agent is thinking & scraping...</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="px-4 py-3 bg-zinc-900 border-t border-zinc-800 flex justify-between items-center text-[10px] text-zinc-500">
-                <span>Active Category: {t[selectedCategory] || selectedCategory}</span>
-                {(!isUpdatingNews) ? (
-                  <button
-                    onClick={() => setShowLogsModal(false)}
-                    className="px-3 py-1 rounded bg-[#0066cc] dark:bg-emerald-500 text-white dark:text-[#090a0f] font-bold uppercase tracking-wider hover:opacity-90 active:scale-95 transition-all cursor-pointer font-sans"
-                  >
-                    Close Terminal
-                  </button>
-                ) : (
-                  <span>Processing... Please wait</span>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
