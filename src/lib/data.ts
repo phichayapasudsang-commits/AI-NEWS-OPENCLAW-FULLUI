@@ -154,6 +154,21 @@ export function toUINewsArticle(row: RawArticleRow): UINewsArticle {
   const trendsOverviewEn = richEn.trends;
   const trendsOverviewTh = richTh.trends;
 
+  const readingTime = computeReadingTime(
+    executiveSummaryEn,
+    keyHighlightsEn,
+    trendsOverviewEn,
+  );
+
+  const pullQuoteEn = extractPullQuote(
+    executiveSummaryEn,
+    trendsOverviewEn,
+  );
+  const pullQuoteTh = extractPullQuote(
+    executiveSummaryTh,
+    trendsOverviewTh,
+  );
+
   return {
     id: row.id,
     titleEn: row.title_en || "",
@@ -172,6 +187,9 @@ export function toUINewsArticle(row: RawArticleRow): UINewsArticle {
     trendsOverviewTh,
     originalSourceUrl: row.original_url || undefined,
     imageUrl: row.image_url ?? undefined,
+    readingTime,
+    pullQuoteEn,
+    pullQuoteTh,
   };
 }
 
@@ -182,9 +200,83 @@ function trimForSnippet(text: string, max = 220): string {
   return text.slice(0, max - 1).trimEnd() + "…";
 }
 
-/** Convert a single bullet line into {title, desc}. */
+/**
+ * Convert a single bullet line into {title, desc}.
+ *
+ * The pipeline writes bullets as full sentences, so we synthesize a short
+ * title by:
+ *   1. Splitting on the first `: ` or ` — ` if present (gives a natural
+ *      headline + expansion).
+ *   2. Otherwise taking the first ~6 words and trailing with `…`.
+ *
+ * `desc` keeps the original full sentence. If the synthesized title is
+ * identical to the line, we leave desc empty to avoid redundancy.
+ */
 function toHighlight(line: string): HighlightBullet {
-  return { title: line, desc: "" };
+  if (!line) return { title: "", desc: "" };
+  const separator = line.match(/^(.{3,80}?):\s+/) || line.match(/^(.{3,80}?)\s\u2014\s+/);
+  if (separator && separator[1]) {
+    const title = separator[1].trim();
+    const desc = line.slice(separator[0].length).trim();
+    return { title, desc };
+  }
+  // No clean break: take first 6 words as title.
+  const words = line.split(/\s+/);
+  if (words.length <= 6) return { title: line, desc: "" };
+  const title = words.slice(0, 6).join(" ") + "\u2026";
+  const desc = line;
+  return { title, desc };
+}
+
+/** Estimate reading time in whole minutes (200 wpm). Returns 0 for empty. */
+function computeReadingTime(
+  exec: string,
+  highlights: HighlightBullet[],
+  trends: string[],
+): number {
+  const parts: string[] = [];
+  if (exec) parts.push(exec);
+  for (const h of highlights) {
+    parts.push(h.title || "");
+    parts.push(h.desc || "");
+  }
+  for (const t of trends) parts.push(t);
+  const words = parts.join(" ").split(/\s+/).filter(Boolean).length;
+  if (words === 0) return 0;
+  return Math.max(1, Math.round(words / 200));
+}
+
+/**
+ * Pick a single punchy sentence for the modal pull quote.
+ *
+ * Priority:
+ *   1. The shortest trend that starts with a strong verb/noun
+ *      (shifts, marks, signals, reveals, opens, becomes, rises, \u2026).
+ *   2. Otherwise the first trend.
+ *   3. Otherwise the first sentence of the executive summary.
+ *   4. Empty string when nothing is available.
+ */
+function extractPullQuote(
+  exec: string,
+  trends: string[],
+): string {
+  const strong = /^(shifts?|marks?|signals?|reveals?|opens?|becomes?|rises?|replaces?|displaces?|emerges?|introduces?|enables?)/i;
+  if (trends.length > 0) {
+    const match = trends
+      .filter((t) => t.length > 0 && t.length <= 180)
+      .sort((a, b) => {
+        const aStrong = strong.test(a) ? 0 : 1;
+        const bStrong = strong.test(b) ? 0 : 1;
+        if (aStrong !== bStrong) return aStrong - bStrong;
+        return a.length - b.length;
+      })[0];
+    if (match) return match;
+  }
+  if (exec) {
+    const first = exec.split(/(?<=[.!?])\s+/)[0];
+    if (first && first.length <= 180) return first;
+  }
+  return "";
 }
 
 /** e.g. "21 Jul 2026, 13:15" */
@@ -222,3 +314,26 @@ export const ARTICLES_DATA: UINewsArticle[] = [];
 
 /** Empty-state placeholder used while the dashboard is loading. */
 export const EMPTY_ARTICLES: UINewsArticle[] = [];
+
+/**
+ * Return up to `limit` articles related to `article`.
+ *
+ * Same-category first (newest first). If there aren't enough, fall back
+ * to most-recent articles of any other category so the modal still has
+ * 3 cards even on the very first day of a brand-new category.
+ */
+export function findRelatedArticles<T extends { id: number | string; category: Category }>(
+  pool: T[],
+  article: T,
+  limit = 3,
+): T[] {
+  const sameCat = pool
+    .filter((a) => a.id !== article.id && a.category === article.category)
+    .slice(0, limit);
+  if (sameCat.length >= limit) return sameCat;
+  const need = limit - sameCat.length;
+  const others = pool
+    .filter((a) => a.id !== article.id && a.category !== article.category)
+    .slice(0, need);
+  return [...sameCat, ...others];
+}

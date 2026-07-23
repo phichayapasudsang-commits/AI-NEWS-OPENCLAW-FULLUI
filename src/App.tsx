@@ -23,7 +23,7 @@ import {
   Globe,
   Info
 } from 'lucide-react';
-import { ARTICLES_DATA } from './lib/data';
+import { ARTICLES_DATA, findRelatedArticles } from './lib/data';
 import { fetchArticles } from './lib/supabase';
 import { NewsArticle, Category, CategoryFilter, HighlightBullet } from './lib/types';
 
@@ -373,19 +373,23 @@ export default function App() {
             </h2>
           </div>
 
-          <div className="my-2.5 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 text-[11px] font-mono text-black/70 dark:text-zinc-500">
-            <span 
+          <div className="my-2.5 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-[11px] font-mono text-black/70 dark:text-zinc-500">
+            <span
               className="flex items-center gap-1 select-none"
               style={theme === 'light' ? { color: article.id === 'openai-framework-2026' ? '#0a0a0b' : '#000000' } : undefined}
             >
               {t.published}: {article.publishedDate}
             </span>
-            <span 
-              className="flex items-center gap-1"
-              style={theme === 'light' ? { color: '#000000' } : undefined}
-            >
-              {t.summarized}: {article.summarizedTime}
-            </span>
+            {article.readingTime > 0 && (
+              <span
+                className="flex items-center gap-1 select-none"
+                style={theme === 'light' ? { color: '#000000' } : undefined}
+                title="Estimated read time"
+              >
+                <Clock className="h-3 w-3" />
+                {article.readingTime} min read
+              </span>
+            )}
           </div>
 
           <p 
@@ -613,184 +617,259 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-              className="w-full bg-white dark:bg-[#121319] border-2 border-black dark:border-zinc-200 rounded-lg p-6 md:p-8 relative"
+              className="w-full bg-white dark:bg-[#121319] border-2 border-black dark:border-zinc-200 rounded-lg overflow-hidden relative"
               style={theme === 'light' ? { backgroundColor: '#FFFBFB', color: '#000000' } : undefined}
             >
-              {/* Back button top-left */}
+              {/* Back button (sticky-feeling, top-left) */}
               <button
                 id="close-back-btn"
                 onClick={() => setActiveArticle(null)}
-                className="mb-5 inline-flex items-center gap-1.5 px-3 py-1 text-xs font-mono border border-black dark:border-zinc-700 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all shadow-sm active:scale-95 text-black dark:text-zinc-200"
-                style={theme === 'light' ? { backgroundColor: '#c3c2c2', color: '#000000', borderColor: '#71717a' } : undefined}
+                className="absolute top-4 left-4 z-10 inline-flex items-center gap-1.5 px-3 py-1 text-xs font-mono border border-black dark:border-zinc-700 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all shadow-sm active:scale-95 text-black dark:text-zinc-200 bg-white/90 dark:bg-[#121319]/85 backdrop-blur"
+                style={theme === 'light' ? { backgroundColor: 'rgba(255,251,251,0.92)', color: '#000000', borderColor: '#71717a' } : undefined}
               >
                 ← {t.backToFeed}
               </button>
 
-              <div className="h-1" />
 
-              {/* Left indicators category tags */}
-              <span 
-                className="inline-block text-[10px] font-mono px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-500/30 bg-indigo-50 dark:bg-[#121319] text-indigo-700 dark:text-indigo-300 uppercase mb-3"
-                style={(() => {
-                  if (theme !== 'light') return undefined;
-                  const cat = activeArticle.category;
-                  if (cat === 'Agent') {
-                    return { backgroundColor: '#01acf4', color: '#183c48', borderColor: '#01acf4' };
-                  }
-                  if (cat === 'Memory') {
-                    return { backgroundColor: '#786efb', color: '#10111c', borderColor: '#786efb' };
-                  }
-                  if (cat === 'MCP') {
-                    const bg = activeArticle.id === 'microsoft-semantic-kernel-mcp' ? '#aa44fc' : '#a743f9';
-                    const cl = activeArticle.id === 'microsoft-semantic-kernel-mcp' ? '#100d11' : '#171119';
-                    return { backgroundColor: bg, color: cl, borderColor: bg };
-                  }
-                  const bg = '#d6843d';
-                  const cl = activeArticle.id === 'autonomous-mcp-agent-market' ? '#110e05' : '#050401';
-                  return { backgroundColor: bg, color: cl, borderColor: bg };
-                })()}
-              >
-                {activeArticle.category}
-              </span>
 
-              <h3 
-                className="font-display text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-black dark:text-white mb-2 leading-snug"
-                style={theme === 'light' ? { color: '#000000' } : undefined}
-              >
-                {lang === 'en' ? activeArticle.titleEn : activeArticle.titleTh}
-              </h3>
+              {/* HERO ZONE: image with title overlay (or clean text-only fallback) */}
+              <div className="relative">
+                {activeArticle.imageUrl ? (
+                  <div className="w-full max-h-[420px] overflow-hidden bg-zinc-100 dark:bg-zinc-950/20 flex justify-center items-center">
+                    <img
+                      src={activeArticle.imageUrl}
+                      alt={lang === 'en' ? activeArticle.titleEn : activeArticle.titleTh}
+                      className="w-full max-h-[420px] object-cover"
+                      onError={(e) => {
+                        const wrap = (e.target as HTMLImageElement).parentElement!.parentElement!;
+                        wrap.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="h-2" />
+                )}
 
-              {/* Live Modal Translation Switcher */}
-              <div className="flex items-center justify-between border-b border-dashed border-black dark:border-zinc-800 pb-3 mb-4">
-                <div 
-                  className="text-[10px] font-mono text-black/80 dark:text-zinc-500 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4"
-                  style={theme === 'light' ? { color: '#000000' } : undefined}
+                {/* Title block — overlays image (with gradient) when present, sits on bg otherwise */}
+                <div
+                  className={
+                    activeArticle.imageUrl
+                      ? 'absolute inset-x-0 bottom-0 pt-16 pb-5 px-6 md:px-8 bg-gradient-to-t from-black/85 via-black/55 to-transparent'
+                      : 'px-6 md:px-8 pt-5'
+                  }
                 >
-                  <span style={theme === 'light' ? { color: '#000000' } : undefined}>{t.published}: {activeArticle.publishedDate}</span>
-                  <span className="hidden sm:inline">-</span>
-                  <span style={theme === 'light' ? { color: '#000000' } : undefined}>{t.summarized}: {activeArticle.summarizedTime}</span>
+                  {/* Category badge */}
+                  <span
+                    className="inline-block text-[10px] font-mono px-2 py-0.5 rounded uppercase mb-2 backdrop-blur-sm"
+                    style={(() => {
+                      const cat = activeArticle.category;
+                      const lightColor =
+                        cat === 'Agent' ? '#183c48'
+                        : cat === 'Memory' ? '#10111c'
+                        : cat === 'MCP' ? '#100d11'
+                        : '#050401';
+                      const lightBg =
+                        cat === 'Agent' ? '#01acf4'
+                        : cat === 'Memory' ? '#786efb'
+                        : cat === 'MCP' ? '#a743f9'
+                        : '#d6843d';
+                      return activeArticle.imageUrl
+                        ? { backgroundColor: lightBg, color: lightColor, borderColor: 'rgba(255,255,255,0.35)', borderWidth: '1px' }
+                        : theme === 'light'
+                          ? { backgroundColor: lightBg, color: lightColor, borderColor: lightBg }
+                          : { backgroundColor: 'rgba(24,24,27,0.7)', color: '#e4e4e7', borderColor: 'rgba(255,255,255,0.25)', borderWidth: '1px' };
+                    })()}
+                  >
+                    {activeArticle.category}
+                  </span>
+
+                  <h3
+                    className={
+                      'font-display font-bold tracking-tight leading-tight ' +
+                      (activeArticle.imageUrl
+                        ? 'text-xl sm:text-2xl md:text-3xl text-white'
+                        : 'text-lg sm:text-xl md:text-2xl text-black dark:text-white')
+                    }
+                  >
+                    {lang === 'en' ? activeArticle.titleEn : activeArticle.titleTh}
+                  </h3>
                 </div>
               </div>
 
+              {/* META BAR: published · summarized · reading time */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-6 md:px-8 pt-3 pb-2 text-[11px] font-mono text-black/70 dark:text-zinc-500 border-b border-dashed border-black/15 dark:border-zinc-800"
+                style={theme === 'light' ? { color: '#000000' } : undefined}
+              >
+                <span>{t.published}: {activeArticle.publishedDate}</span>
+                <span className="opacity-50">|</span>
+                <span>{t.summarized}: {activeArticle.summarizedTime}</span>
+                {activeArticle.readingTime > 0 && (
+                  <>
+                    <span className="opacity-50">|</span>
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {activeArticle.readingTime} min read
+                    </span>
+                  </>
+                )}
+              </div>
 
-
-              {activeArticle.imageUrl && (
-                <div className="w-full max-h-[450px] overflow-hidden rounded-lg border border-black dark:border-zinc-800 mb-6 bg-zinc-50 dark:bg-zinc-950/20 flex justify-center items-center">
-                  <img 
-                    src={activeArticle.imageUrl} 
-                    alt={lang === 'en' ? activeArticle.titleEn : activeArticle.titleTh}
-                    className="w-full max-h-[450px] object-contain"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).parentElement!.style.display = 'none';
-                    }}
-                  />
-                </div>
-              )}
-
-              {/* Executive Summary Section */}
-              <div className="p-4 rounded-lg bg-[#0066cc]/5 dark:bg-emerald-500/5 border-2 border-black dark:border-zinc-800/80 mb-6">
-                <h4 
-                  className="font-mono text-[11px] font-bold text-[#0066cc] dark:text-emerald-400 tracking-wider uppercase mb-2 flex items-center gap-1.5"
-                  style={theme === 'light' ? { color: '#0066cc' } : undefined}
-                >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  {t.execSummary}
-                </h4>
-                <p 
-                  className="text-xs sm:text-sm text-black/90 dark:text-zinc-200 leading-relaxed font-sans font-medium"
+              {/* LEDE ZONE: big executive summary, no box, no icon */}
+              <div className="px-6 md:px-8 pt-6">
+                <p
+                  className="text-base sm:text-lg leading-relaxed font-sans font-medium text-black dark:text-zinc-100"
                   style={theme === 'light' ? { color: '#000000' } : undefined}
                 >
                   {lang === 'en' ? activeArticle.executiveSummaryEn : activeArticle.executiveSummaryTh}
                 </p>
               </div>
 
-              {/* Key Highlights & Thailand Relevance Section */}
-              <div className="space-y-4 mb-6">
-                <h4 
-                  className="font-mono text-[11px] font-bold text-[#0066cc] dark:text-emerald-400 tracking-wider uppercase flex items-center gap-1.5"
-                  style={theme === 'light' ? { color: '#0066cc' } : undefined}
-                >
-                  <Layers className="h-3.5 w-3.5" />
-                  {t.keyHighlights}
-                </h4>
-
-                <div className="grid gap-4">
-                  {(lang === 'en' ? activeArticle.keyHighlightsEn : activeArticle.keyHighlightsTh).map((highlight: HighlightBullet, idx: number) => (
-                    <div
-                      id={`highlight-row-${idx}`}
-                      key={idx}
-                      className="bg-white dark:bg-zinc-900/30 p-4 rounded-lg border border-black dark:border-zinc-800/80 hover:border-black/50 dark:hover:border-zinc-700/60 transition-all flex flex-col gap-3"
-                      style={theme === 'light' ? { backgroundColor: '#FFFBFB', borderColor: '#000000' } : undefined}
+              {/* PULL QUOTE: one sentence, large, magazine-style */}
+              {(lang === 'en' ? activeArticle.pullQuoteEn : activeArticle.pullQuoteTh) && (
+                <div className="px-6 md:px-8 pt-6">
+                  <blockquote
+                    className="relative pl-5 border-l-4 border-[#0066cc] dark:border-emerald-400"
+                    style={theme === 'light' ? { borderColor: '#0066cc' } : undefined}
+                  >
+                    <span
+                      className="absolute -left-1 -top-2 text-5xl leading-none font-display text-[#0066cc]/25 dark:text-emerald-400/30 select-none"
+                      aria-hidden="true"
                     >
-                      <div className="flex gap-3 items-start">
-                        <div className="h-5 w-5 rounded-full bg-[#0066cc]/10 dark:bg-emerald-500/10 text-[#0066cc] dark:text-emerald-400 flex items-center justify-center shrink-0 text-xs font-mono font-bold mt-0.5">
-                          {idx + 1}
-                        </div>
-                        <div>
-                          <h5 
-                            className="text-xs sm:text-sm font-bold text-black dark:text-white leading-tight mb-1.5"
-                            style={theme === 'light' ? { color: '#000000' } : undefined}
-                          >
-                            {highlight.title}
-                          </h5>
-                          <p 
-                            className="text-xs text-black/85 dark:text-zinc-300 leading-relaxed font-sans"
+                      &ldquo;
+                    </span>
+                    <p
+                      className="text-lg sm:text-xl md:text-2xl font-display font-medium leading-snug text-black dark:text-white italic"
+                      style={theme === 'light' ? { color: '#000000' } : undefined}
+                    >
+                      {lang === 'en' ? activeArticle.pullQuoteEn : activeArticle.pullQuoteTh}
+                    </p>
+                  </blockquote>
+                </div>
+              )}
+
+              {/* INSIGHTS ZONE: 2-col grid (highlights + trends) on desktop, stacked on mobile */}
+              <div className="px-6 md:px-8 pt-8 pb-2 grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
+                {/* Highlights column (2/3 on desktop) */}
+                <div className="md:col-span-2 space-y-5">
+                  <h4
+                    className="font-mono text-[11px] font-bold text-black/80 dark:text-zinc-400 tracking-[0.18em] uppercase"
+                    style={theme === 'light' ? { color: '#000000' } : undefined}
+                  >
+                    {t.keyHighlights}
+                  </h4>
+                  <ol className="space-y-5">
+                    {(lang === 'en' ? activeArticle.keyHighlightsEn : activeArticle.keyHighlightsTh).map((highlight: HighlightBullet, idx: number) => (
+                      <li
+                        id={"highlight-row-" + idx}
+                        key={idx}
+                        className="group relative pl-9"
+                      >
+                        <span
+                          className="absolute left-0 top-0 font-mono text-2xl font-bold leading-none text-[#0066cc]/30 dark:text-emerald-400/40 group-hover:text-[#0066cc] dark:group-hover:text-emerald-400 transition-colors select-none"
+                          aria-hidden="true"
+                        >
+                          {String(idx + 1).padStart(2, '0')}
+                        </span>
+                        <h5
+                          className="text-sm sm:text-base font-bold text-black dark:text-white leading-snug mb-1"
+                          style={theme === 'light' ? { color: '#000000' } : undefined}
+                        >
+                          {highlight.title}
+                        </h5>
+                        {highlight.desc && highlight.desc !== highlight.title && (
+                          <p
+                            className="text-xs sm:text-sm text-black/80 dark:text-zinc-300 leading-relaxed font-sans"
                             style={theme === 'light' ? { color: '#2b2b2f' } : undefined}
                           >
                             {highlight.desc}
                           </p>
-                        </div>
-                      </div>
-                      
-                      {/* Thailand Relevance Context Callout */}
-                      {highlight.thailandRelevance && (
-                        <div className="mt-1 bg-amber-500/5 dark:bg-emerald-500/5 border-l-2 border-[#0066cc] dark:border-emerald-500 p-2.5 rounded-r text-[11px] leading-relaxed">
-                          <span className="font-bold text-[#0066cc] dark:text-emerald-400 uppercase tracking-wider block mb-0.5 text-[9px] font-mono">
-                            ✦ {t.thaiPerspectiveLabel}
-                          </span>
-                          <span 
-                            className="text-black/80 dark:text-zinc-300 font-medium"
-                            style={theme === 'light' ? { color: '#3c3c43' } : undefined}
-                          >
+                        )}
+                        {highlight.thailandRelevance && (
+                          <div className="mt-2 pl-3 border-l-2 border-[#0066cc]/60 dark:border-emerald-400/60 text-[11px] sm:text-xs leading-relaxed text-black/75 dark:text-zinc-400">
+                            <span
+                              className="font-mono font-bold uppercase tracking-wider text-[10px] text-[#0066cc] dark:text-emerald-400 block mb-0.5"
+                              style={theme === 'light' ? { color: '#0066cc' } : undefined}
+                            >
+                              {t.thaiPerspectiveLabel}
+                            </span>
                             {highlight.thailandRelevance}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
                 </div>
+
+                {/* Trends column (1/3 on desktop) */}
+                {(lang === 'en' ? activeArticle.trendsOverviewEn : activeArticle.trendsOverviewTh).length > 0 && (
+                  <div className="md:col-span-1">
+                    <div className="md:sticky md:top-4 space-y-3 p-4 rounded-md bg-black/[0.03] dark:bg-white/[0.03] border-l-2 border-[#0066cc] dark:border-emerald-400">
+                      <h4
+                        className="font-mono text-[11px] font-bold text-black/80 dark:text-zinc-400 tracking-[0.18em] uppercase"
+                        style={theme === 'light' ? { color: '#000000' } : undefined}
+                      >
+                        {t.trendsOverview}
+                      </h4>
+                      <ul className="space-y-3 text-xs sm:text-sm text-black/85 dark:text-zinc-300" id="trends-list">
+                        {(lang === 'en' ? activeArticle.trendsOverviewEn : activeArticle.trendsOverviewTh).map((trend: string, idx: number) => (
+                          <li
+                            key={idx}
+                            className="leading-relaxed font-sans"
+                            style={theme === 'light' ? { color: '#000000' } : undefined}
+                          >
+                            {trend}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Trends & Overview Section */}
-              <div className="space-y-3 mb-6 p-4 rounded-lg bg-zinc-50 dark:bg-zinc-900/10 border border-black/10 dark:border-zinc-800/40">
-                <h4 
-                  className="font-mono text-[11px] font-bold text-[#0066cc] dark:text-emerald-400 tracking-wider uppercase flex items-center gap-1.5"
-                  style={theme === 'light' ? { color: '#0066cc' } : undefined}
-                >
-                  <BookOpen className="h-3.5 w-3.5" />
-                  {t.trendsOverview}
-                </h4>
 
-                <ul className="space-y-2 text-xs text-black/90 dark:text-zinc-400" id="trends-list">
-                  {(lang === 'en' ? activeArticle.trendsOverviewEn : activeArticle.trendsOverviewTh).map((trend: string, idx: number) => (
-                    <li 
-                      key={idx} 
-                      className="flex items-start gap-2.5"
+              {/* RELATED ARTICLES: same category first, fall back to other categories */}
+              {(() => {
+                const related = findRelatedArticles(filteredArticles, activeArticle, 3);
+                if (related.length === 0) return null;
+                return (
+                  <div className="px-6 md:px-8 pt-8 border-t border-dashed border-black/15 dark:border-zinc-800">
+                    <h4
+                      className="font-mono text-[11px] font-bold text-black/80 dark:text-zinc-400 tracking-[0.18em] uppercase mb-4"
                       style={theme === 'light' ? { color: '#000000' } : undefined}
                     >
-                      <span 
-                        className="text-[#0066cc] dark:text-emerald-400 select-none font-bold mt-0.5"
-                        style={theme === 'light' ? { color: '#0066cc' } : undefined}
-                      >▪</span>
-                      <span 
-                        className="leading-relaxed font-sans font-medium text-black/90 dark:text-zinc-300"
-                        style={theme === 'light' ? { color: '#000000' } : undefined}
-                      >{trend}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
+                      More in {activeArticle.category}
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      {related.map((r) => (
+                        <button
+                          key={r.id}
+                          onClick={() => setActiveArticle(r)}
+                          className="text-left group p-3 rounded-md border border-black/10 dark:border-zinc-800/60 hover:border-black dark:hover:border-zinc-600 transition-all bg-white dark:bg-zinc-900/20"
+                          style={theme === 'light' ? { backgroundColor: '#FFFBFB', borderColor: '#000000' } : undefined}
+                        >
+                          {r.imageUrl && (
+                            <div className="w-full h-24 mb-2 overflow-hidden rounded-sm bg-zinc-100 dark:bg-zinc-950/20 flex items-center justify-center">
+                              <img
+                                src={r.imageUrl}
+                                alt={lang === 'en' ? r.titleEn : r.titleTh}
+                                className="w-full h-full object-cover"
+                                onError={(e) => { (e.target as HTMLImageElement).parentElement!.style.display = 'none'; }}
+                              />
+                            </div>
+                          )}
+                          <div className="font-mono text-[10px] text-black/60 dark:text-zinc-500 mb-1">{r.publishedDate}</div>
+                          <div
+                            className="text-xs sm:text-sm font-bold leading-snug text-black dark:text-zinc-100 line-clamp-3"
+                            style={theme === 'light' ? { color: '#000000' } : undefined}
+                          >
+                            {lang === 'en' ? r.titleEn : r.titleTh}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
               {/* Back to feed closing actions */}
               <div className="border-t border-black dark:border-zinc-800 pt-4 flex flex-wrap items-center justify-between gap-3">
                 {activeArticle.originalSourceUrl ? (

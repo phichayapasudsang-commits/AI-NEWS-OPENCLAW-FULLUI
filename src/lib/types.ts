@@ -50,6 +50,11 @@ export interface UINewsArticle {
   imageUrl?: string | null;
   trendsOverviewEn: string[];
   trendsOverviewTh: string[];
+  /** Estimated read time in minutes (200 wpm). 0 if unknown. */
+  readingTime: number;
+  /** One short, punchy sentence for the hero blockquote. */
+  pullQuoteEn: string;
+  pullQuoteTh: string;
 }
 
 /**
