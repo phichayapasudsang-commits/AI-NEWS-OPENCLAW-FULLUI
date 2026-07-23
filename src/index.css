@@ -1,8 +1,25 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
+/* ----------------------------------------------------------------------------
+ * Font strategy: one Thai-capable family (Plus Jakarta Sans + Noto Sans Thai
+ * as Thai glyph provider) for display & body, plus JetBrains Mono for
+ * code-style meta. Noto Sans Thai is layered into every stack so Thai
+ * characters always fall back to the same family across containers —
+ * otherwise JetBrains Mono misses Thai and the browser picks whatever
+ * system Thai font happens to be next in the user's stack, producing
+ * inconsistent weights/metrics across labels, headers and meta lines.
+ * -------------------------------------------------------------------------- */
 @theme {
   --font-sans: "Plus Jakarta Sans", "Noto Sans Thai", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Plus Jakarta Sans", "Noto Sans Thai", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-mono: "JetBrains Mono", "Noto Sans Thai", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Smooth font loading: avoid FOUT/FOIT for Thai glyphs. */
+html {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
