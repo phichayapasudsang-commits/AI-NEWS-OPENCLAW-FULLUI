@@ -135,9 +135,13 @@ export default function App() {
    * are tagged with a `srv-` prefix so they cannot collide with future
    * user-added ids. Server wins on collisions; local-only entries are
    * appended at the end.
+   *
+   * `silent: true` skips the loading spinner so background refreshes
+   * (e.g. on tab focus) don't make the page flicker.
    */
-  const refreshArticlesFromSupabase = useCallback(async () => {
-    setIsLoadingArticles(true);
+  const refreshArticlesFromSupabase = useCallback(async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent === true;
+    if (!silent) setIsLoadingArticles(true);
     setArticlesFetchError(null);
     try {
       const savedRaw = localStorage.getItem('agentic-news-list');
@@ -156,7 +160,7 @@ export default function App() {
       console.error('[dashboard] Failed to fetch articles from Supabase:', msg);
       setArticlesFetchError(msg);
     } finally {
-      setIsLoadingArticles(false);
+      if (!silent) setIsLoadingArticles(false);
     }
   }, []);
 
