@@ -782,12 +782,12 @@ export default function App() {
                       {t.structuralDetails}
                     </h4>
                   </div>
-                  <ol className="space-y-6">
+                  <ol className="space-y-4">
                     {(lang === 'en' ? activeArticle.detailedBulletsEn : activeArticle.detailedBulletsTh).map((bullet: SummaryBullet, idx: number) => (
                       <li
                         id={"highlight-row-" + idx}
                         key={idx}
-                        className="group relative pl-10 py-3 rounded-md hover:bg-black/[0.025] dark:hover:bg-white/[0.025] transition-colors"
+                        className="group relative pl-12 pr-4 py-4 rounded-md border border-black/15 dark:border-zinc-800 bg-white dark:bg-[#111218]/40 hover:border-black dark:hover:border-zinc-600 hover:shadow-sm transition-all"
                       >
                         <span
                           className="absolute left-0 top-1 font-mono text-xs sm:text-sm font-bold leading-none text-[#0066cc]/30 dark:text-emerald-400/40 group-hover:text-[#0066cc] dark:group-hover:text-emerald-400 transition-colors select-none"
