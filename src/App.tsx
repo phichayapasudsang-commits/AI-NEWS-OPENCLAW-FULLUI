@@ -780,10 +780,10 @@ export default function App() {
                       <li
                         id={"highlight-row-" + idx}
                         key={idx}
-                        className="group relative pl-10 pr-4 py-4 rounded-md border border-black dark:border-zinc-600 bg-transparent hover:bg-black/[0.02] dark:hover:bg-white/[0.02] hover:shadow-sm transition-all"
+                        className="group relative pl-14 pr-4 py-4 rounded-md border border-black dark:border-zinc-600 bg-transparent hover:bg-black/[0.02] dark:hover:bg-white/[0.02] hover:shadow-sm transition-all"
                       >
                         <span
-                          className="absolute left-3 top-1/2 -translate-y-1/2 font-mono text-xs sm:text-sm font-bold leading-none text-black/70 dark:text-zinc-300 group-hover:text-black dark:group-hover:text-white transition-colors select-none tabular-nums"
+                          className="absolute left-3 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded-full border border-[#0066cc] dark:border-emerald-400 font-mono text-xs sm:text-sm font-bold leading-none text-black dark:text-zinc-100 select-none tabular-nums"
                           aria-hidden="true"
                         >
                           {idx + 1}
