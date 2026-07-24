@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useCallback, MouseEvent } from 'react';
+import { useState, useEffect, useCallback, useRef, MouseEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Sun,
@@ -21,11 +21,16 @@ import {
   ArrowUpRight,
   RefreshCw,
   Globe,
-  Info
+  Info,
+  ChevronUp,
+  Quote,
+  Lightbulb,
+  TrendingUp,
+  Newspaper
 } from 'lucide-react';
 import { ARTICLES_DATA, findRelatedArticles } from './lib/data';
 import { fetchArticles } from './lib/supabase';
-import { NewsArticle, Category, CategoryFilter, HighlightBullet } from './lib/types';
+import { NewsArticle, Category, CategoryFilter, SummaryBullet } from './lib/types';
 
 // UI Dictionary for dual-language support
 const DICTIONARY = {
@@ -60,7 +65,9 @@ const DICTIONARY = {
     themeLight: 'Light Mode',
     themeDark: 'Dark Mode',
     source: 'Source',
-    readOriginalSource: 'Read Original Source'
+    readOriginalSource: 'Read Original Source',
+
+    backToTop: 'Back to top',
   },
   th: {
     title: 'Agentic AI News',
@@ -93,7 +100,7 @@ const DICTIONARY = {
     themeLight: 'โหมดสว่าง (ขาว)',
     themeDark: 'โหมดมืด (ดำ)',
     source: 'แหล่งข่าว',
-    readOriginalSource: 'เปิดดูแหล่งข่าวต้นฉบับ'
+    backToTop: 'กลับขึ้นด้านบน',
   }
 };
 
@@ -127,6 +134,11 @@ export default function App() {
     }
     return [];
   });
+
+
+  // Track scroll position within the active article modal for back-to-top visibility
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  const articleScrollRef = useRef<HTMLDivElement | null>(null);
 
   // Loading + error state for the initial Supabase fetch.
   const [isLoadingArticles, setIsLoadingArticles] = useState(true);
@@ -195,6 +207,17 @@ export default function App() {
 
   // Selected article for detailed modal dialog view
   const [activeArticle, setActiveArticle] = useState<NewsArticle | null>(null);
+
+  // Show back-to-top button once user has scrolled down inside the modal.
+  useEffect(() => {
+    const node = articleScrollRef.current;
+    if (!node) return;
+    setShowBackToTop(false);
+    const onScroll = () => setShowBackToTop(node.scrollTop > 600);
+    onScroll();
+    node.addEventListener('scroll', onScroll, { passive: true });
+    return () => node.removeEventListener('scroll', onScroll);
+  }, [activeArticle]);
 
   // Hover states for light-mode specific interactive elements
   const [isCloseHovered, setIsCloseHovered] = useState(false);
@@ -310,7 +333,7 @@ export default function App() {
     const title = lang === 'en' ? article.titleEn : article.titleTh;
     const snippet = lang === 'en' ? article.snippetEn : article.snippetTh;
     const categoryLabel = article.category;
-    const isAgents = article.category === 'Agent';
+    const isAgents = article.category === 'Agents';
     const isMemory = article.category === 'Memory';
     const isMcp = article.category === 'MCP';
     
@@ -512,7 +535,7 @@ export default function App() {
                 
                 {/* Categories Selector list (Desktop and Phone layout) */}
                 <div className="md:col-span-8 overflow-x-auto scrollbar-none py-1 flex gap-2 select-none" id="categories-dock">
-                  {(['All', 'Agent', 'Memory', 'MCP', 'Research'] as CategoryFilter[]).map((cat) => {
+                  {(['All', 'Agents', 'Memory', 'MCP', 'Research'] as CategoryFilter[]).map((cat) => {
                     const active = selectedCategory === cat;
                     return (
                       <button
@@ -634,25 +657,49 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-              className="w-full bg-white dark:bg-[#121319] border-2 border-black dark:border-zinc-200 rounded-lg overflow-hidden relative"
+              ref={articleScrollRef} className="w-full bg-white dark:bg-[#121319] border-2 border-black dark:border-zinc-200 rounded-lg overflow-hidden relative"
               style={theme === 'light' ? { backgroundColor: '#FFFBFB', color: '#000000' } : undefined}
             >
-              {/* Back button (sticky-feeling, top-left) */}
-              <button
-                id="close-back-btn"
-                onClick={() => setActiveArticle(null)}
-                className="absolute top-4 left-4 z-10 inline-flex items-center gap-1.5 px-3 py-1 text-xs font-mono border border-black dark:border-zinc-700 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all shadow-sm active:scale-95 text-black dark:text-zinc-200 bg-white/90 dark:bg-[#121319]/85 backdrop-blur"
-                style={theme === 'light' ? { backgroundColor: 'rgba(255,251,251,0.92)', color: '#000000', borderColor: '#71717a' } : undefined}
-              >
-                ← {t.backToFeed}
-              </button>
+              {/* TOP BAR: back link (left) + category badge (right) */}
+              <div className="flex items-center justify-between gap-3 px-6 md:px-8 pt-5 pb-4">
+                <button
+                  id="close-back-btn"
+                  onClick={() => setActiveArticle(null)}
+                  className="inline-flex items-center gap-1.5 text-sm font-mono text-black dark:text-zinc-200 hover:underline underline-offset-4 transition-all"
+                  style={theme === 'light' ? { color: '#000000' } : undefined}
+                >
+                  <span aria-hidden="true">←</span>
+                  <span>{t.backToFeed}</span>
+                </button>
 
+                {/* Category badge */}
+                <span
+                  className="inline-block text-[10px] font-mono px-2 py-0.5 rounded uppercase"
+                  style={(() => {
+                    const cat = activeArticle.category;
+                    const lightColor =
+                      cat === 'Agents' ? '#183c48'
+                      : cat === 'Memory' ? '#10111c'
+                      : cat === 'MCP' ? '#100d11'
+                      : '#050401';
+                    const lightBg =
+                      cat === 'Agents' ? '#01acf4'
+                      : cat === 'Memory' ? '#786efb'
+                      : cat === 'MCP' ? '#a743f9'
+                      : '#d6843d';
+                    return theme === 'light'
+                      ? { backgroundColor: lightBg, color: lightColor, borderColor: lightBg }
+                      : { backgroundColor: 'rgba(24,24,27,0.7)', color: '#e4e4e7', borderColor: 'rgba(255,255,255,0.25)', borderWidth: '1px' };
+                  })()}
+                >
+                  {activeArticle.category}
+                </span>
+              </div>
 
-
-              {/* HERO ZONE: image with title overlay (or clean text-only fallback) */}
-              <div className="relative">
-                {activeArticle.imageUrl ? (
-                  <div className="w-full max-h-[420px] overflow-hidden bg-zinc-100 dark:bg-zinc-950/20 flex justify-center items-center">
+              {/* HERO IMAGE (clean, no overlay) */}
+              {activeArticle.imageUrl && (
+                <div className="px-6 md:px-8 pb-4">
+                  <div className="w-full max-h-[420px] overflow-hidden rounded-md bg-zinc-100 dark:bg-zinc-950/20 flex justify-center items-center">
                     <img
                       src={activeArticle.imageUrl}
                       alt={lang === 'en' ? activeArticle.titleEn : activeArticle.titleTh}
@@ -663,67 +710,30 @@ export default function App() {
                       }}
                     />
                   </div>
-                ) : (
-                  <div className="h-2" />
-                )}
-
-                {/* Title block — overlays image (with gradient) when present, sits on bg otherwise */}
-                <div
-                  className={
-                    activeArticle.imageUrl
-                      ? 'absolute inset-x-0 bottom-0 pt-16 pb-5 px-6 md:px-8 bg-gradient-to-t from-black/85 via-black/55 to-transparent'
-                      : 'px-6 md:px-8 pt-5'
-                  }
-                >
-                  {/* Category badge */}
-                  <span
-                    className="inline-block text-[10px] font-mono px-2 py-0.5 rounded uppercase mb-2 backdrop-blur-sm"
-                    style={(() => {
-                      const cat = activeArticle.category;
-                      const lightColor =
-                        cat === 'Agent' ? '#183c48'
-                        : cat === 'Memory' ? '#10111c'
-                        : cat === 'MCP' ? '#100d11'
-                        : '#050401';
-                      const lightBg =
-                        cat === 'Agent' ? '#01acf4'
-                        : cat === 'Memory' ? '#786efb'
-                        : cat === 'MCP' ? '#a743f9'
-                        : '#d6843d';
-                      return activeArticle.imageUrl
-                        ? { backgroundColor: lightBg, color: lightColor, borderColor: 'rgba(255,255,255,0.35)', borderWidth: '1px' }
-                        : theme === 'light'
-                          ? { backgroundColor: lightBg, color: lightColor, borderColor: lightBg }
-                          : { backgroundColor: 'rgba(24,24,27,0.7)', color: '#e4e4e7', borderColor: 'rgba(255,255,255,0.25)', borderWidth: '1px' };
-                    })()}
-                  >
-                    {activeArticle.category}
-                  </span>
-
-                  <h3
-                    className={
-                      'font-display font-bold tracking-tight leading-tight ' +
-                      (activeArticle.imageUrl
-                        ? 'text-xl sm:text-2xl md:text-3xl text-white'
-                        : 'text-lg sm:text-xl md:text-2xl text-black dark:text-white')
-                    }
-                  >
-                    {lang === 'en' ? activeArticle.titleEn : activeArticle.titleTh}
-                  </h3>
                 </div>
+              )}
+
+              {/* TITLE (below image) */}
+              <div className="px-6 md:px-8 pb-3">
+                <h3
+                  className="font-display font-bold tracking-tight leading-tight text-2xl sm:text-3xl md:text-4xl text-black dark:text-white"
+                  style={theme === 'light' ? { color: '#000000' } : undefined}
+                >
+                  {lang === 'en' ? activeArticle.titleEn : activeArticle.titleTh}
+                </h3>
               </div>
 
-              {/* META BAR: published · summarized · reading time */}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-6 md:px-8 pt-3 pb-2 text-[11px] font-mono text-black/70 dark:text-zinc-500 border-b border-dashed border-black/15 dark:border-zinc-800"
-                style={theme === 'light' ? { color: '#000000' } : undefined}
+              {/* META LINE: inline single line */}
+              <div className="px-6 md:px-8 pt-2 pb-6 text-sm font-mono text-black/70 dark:text-zinc-400"
+                style={theme === 'light' ? { color: '#1f1f23' } : undefined}
               >
                 <span>{t.published}: {activeArticle.publishedDate}</span>
-                <span className="opacity-50">|</span>
+                <span className="mx-2 opacity-50">—</span>
                 <span>{t.summarized}: {activeArticle.summarizedTime}</span>
                 {activeArticle.readingTime > 0 && (
                   <>
-                    <span className="opacity-50">|</span>
-                    <span className="flex items-center gap-1">
+                    <span className="mx-2 opacity-50">—</span>
+                    <span className="inline-flex items-center gap-1">
                       <Clock className="h-3 w-3" />
                       {activeArticle.readingTime} min read
                     </span>
@@ -731,21 +741,21 @@ export default function App() {
                 )}
               </div>
 
-              {/* LEDE ZONE: big executive summary, no box, no icon */}
-              <div className="px-6 md:px-8 pt-6">
+              {/* LEDE ZONE: big executive summary, no heading label (just body) */}
+              <section id="section-lede" className="px-6 md:px-8 pt-2 scroll-mt-4">
                 <p
-                  className="text-base sm:text-lg leading-relaxed font-sans font-medium text-black dark:text-zinc-100"
+                  className="text-lg sm:text-xl leading-[1.7] font-sans font-medium text-black dark:text-zinc-50 max-w-[68ch]"
                   style={theme === 'light' ? { color: '#000000' } : undefined}
                 >
                   {lang === 'en' ? activeArticle.executiveSummaryEn : activeArticle.executiveSummaryTh}
                 </p>
-              </div>
+              </section>
 
               {/* PULL QUOTE: one sentence, large, magazine-style */}
               {(lang === 'en' ? activeArticle.pullQuoteEn : activeArticle.pullQuoteTh) && (
-                <div className="px-6 md:px-8 pt-6">
+                <section className="px-6 md:px-8 pt-6">
                   <blockquote
-                    className="relative pl-5 border-l-4 border-[#0066cc] dark:border-emerald-400"
+                    className="relative pl-5 border-l-4 border-[#0066cc] dark:border-emerald-400 max-w-[68ch]"
                     style={theme === 'light' ? { borderColor: '#0066cc' } : undefined}
                   >
                     <span
@@ -755,61 +765,64 @@ export default function App() {
                       &ldquo;
                     </span>
                     <p
-                      className="text-lg sm:text-xl md:text-2xl font-display font-medium leading-snug text-black dark:text-white italic"
+                      className="text-xl sm:text-2xl md:text-3xl font-display font-medium leading-snug text-black dark:text-white italic"
                       style={theme === 'light' ? { color: '#000000' } : undefined}
                     >
                       {lang === 'en' ? activeArticle.pullQuoteEn : activeArticle.pullQuoteTh}
                     </p>
                   </blockquote>
-                </div>
+                </section>
               )}
 
               {/* INSIGHTS ZONE: 2-col grid (highlights + trends) on desktop, stacked on mobile */}
-              <div className="px-6 md:px-8 pt-8 pb-2 grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
+              <section id="section-highlights" className="px-6 md:px-8 pt-8 pb-2 grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6 scroll-mt-4">
                 {/* Highlights column (2/3 on desktop) */}
-                <div className="md:col-span-2 space-y-5">
-                  <h4
-                    className="font-mono text-[11px] font-bold text-black/80 dark:text-zinc-400 tracking-[0.18em] uppercase"
-                    style={theme === 'light' ? { color: '#000000' } : undefined}
-                  >
-                    {t.keyHighlights}
-                  </h4>
-                  <ol className="space-y-5">
-                    {(lang === 'en' ? activeArticle.keyHighlightsEn : activeArticle.keyHighlightsTh).map((highlight: HighlightBullet, idx: number) => (
+                <div className="md:col-span-2 space-y-6">
+                  <div className="flex items-center gap-2 pb-2 border-b-2 border-black/10 dark:border-zinc-700">
+                    <Lightbulb className="h-5 w-5 text-[#0066cc] dark:text-emerald-400" />
+                    <h4
+                      className="font-display text-lg sm:text-xl font-bold text-black dark:text-white"
+                      style={theme === 'light' ? { color: '#000000' } : undefined}
+                    >
+                      {t.keyHighlights}
+                    </h4>
+                  </div>
+                  <ol className="space-y-6">
+                    {(lang === 'en' ? activeArticle.detailedBulletsEn : activeArticle.detailedBulletsTh).map((bullet: SummaryBullet, idx: number) => (
                       <li
                         id={"highlight-row-" + idx}
                         key={idx}
-                        className="group relative pl-9"
+                        className="group relative pl-10 py-3 rounded-md hover:bg-black/[0.025] dark:hover:bg-white/[0.025] transition-colors"
                       >
                         <span
-                          className="absolute left-0 top-0 font-mono text-2xl font-bold leading-none text-[#0066cc]/30 dark:text-emerald-400/40 group-hover:text-[#0066cc] dark:group-hover:text-emerald-400 transition-colors select-none"
+                          className="absolute left-0 top-3 font-mono text-2xl font-bold leading-none text-[#0066cc]/30 dark:text-emerald-400/40 group-hover:text-[#0066cc] dark:group-hover:text-emerald-400 transition-colors select-none"
                           aria-hidden="true"
                         >
                           {String(idx + 1).padStart(2, '0')}
                         </span>
                         <h5
-                          className="text-sm sm:text-base font-bold text-black dark:text-white leading-snug mb-1"
+                          className="text-base sm:text-lg font-bold text-black dark:text-white leading-snug mb-2"
                           style={theme === 'light' ? { color: '#000000' } : undefined}
                         >
-                          {highlight.title}
+                          {bullet.title}
                         </h5>
-                        {highlight.desc && highlight.desc !== highlight.title && (
+                        {bullet.desc && bullet.desc !== bullet.title && (
                           <p
-                            className="text-xs sm:text-sm text-black/80 dark:text-zinc-300 leading-relaxed font-sans"
-                            style={theme === 'light' ? { color: '#2b2b2f' } : undefined}
+                            className="text-sm sm:text-[15px] text-black/85 dark:text-zinc-200 leading-[1.7] font-sans max-w-[68ch]"
+                            style={theme === 'light' ? { color: '#1f1f23' } : undefined}
                           >
-                            {highlight.desc}
+                            {bullet.desc}
                           </p>
                         )}
-                        {highlight.thailandRelevance && (
-                          <div className="mt-2 pl-3 border-l-2 border-[#0066cc]/60 dark:border-emerald-400/60 text-[11px] sm:text-xs leading-relaxed text-black/75 dark:text-zinc-400">
+                        {bullet.thailandRelevance && (
+                          <div className="mt-3 pl-3 border-l-2 border-[#0066cc]/60 dark:border-emerald-400/60 text-xs sm:text-sm leading-[1.7] text-black/85 dark:text-zinc-300">
                             <span
                               className="font-mono font-bold uppercase tracking-wider text-[10px] text-[#0066cc] dark:text-emerald-400 block mb-0.5"
                               style={theme === 'light' ? { color: '#0066cc' } : undefined}
                             >
                               {t.thaiPerspectiveLabel}
                             </span>
-                            {highlight.thailandRelevance}
+                            {bullet.thailandRelevance}
                           </div>
                         )}
                       </li>
@@ -818,30 +831,33 @@ export default function App() {
                 </div>
 
                 {/* Trends column (1/3 on desktop) */}
-                {(lang === 'en' ? activeArticle.trendsOverviewEn : activeArticle.trendsOverviewTh).length > 0 && (
-                  <div className="md:col-span-1">
-                    <div className="md:sticky md:top-4 space-y-3 p-4 rounded-md bg-black/[0.03] dark:bg-white/[0.03] border-l-2 border-[#0066cc] dark:border-emerald-400">
-                      <h4
-                        className="font-mono text-[11px] font-bold text-black/80 dark:text-zinc-400 tracking-[0.18em] uppercase"
-                        style={theme === 'light' ? { color: '#000000' } : undefined}
-                      >
-                        {t.trendsOverview}
-                      </h4>
-                      <ul className="space-y-3 text-xs sm:text-sm text-black/85 dark:text-zinc-300" id="trends-list">
-                        {(lang === 'en' ? activeArticle.trendsOverviewEn : activeArticle.trendsOverviewTh).map((trend: string, idx: number) => (
+                {(lang === 'en' ? activeArticle.keyImplicationsEn : activeArticle.keyImplicationsTh).length > 0 && (
+                  <aside id="section-trends" className="md:col-span-1 scroll-mt-4">
+                    <div className="md:sticky md:top-4 space-y-3 p-5 rounded-md bg-black/[0.04] dark:bg-white/[0.04] border-l-4 border-[#0066cc] dark:border-emerald-400">
+                      <div className="flex items-center gap-2 pb-2 border-b border-black/10 dark:border-zinc-700">
+                        <TrendingUp className="h-5 w-5 text-[#0066cc] dark:text-emerald-400" />
+                        <h4
+                          className="font-display text-base sm:text-lg font-bold text-black dark:text-white"
+                          style={theme === 'light' ? { color: '#000000' } : undefined}
+                        >
+                          {t.trendsOverview}
+                        </h4>
+                      </div>
+                      <ul className="space-y-3 text-sm sm:text-[15px] text-black/90 dark:text-zinc-200" id="trends-list">
+                        {(lang === 'en' ? activeArticle.keyImplicationsEn : activeArticle.keyImplicationsTh).map((implication: string, idx: number) => (
                           <li
                             key={idx}
-                            className="leading-relaxed font-sans"
-                            style={theme === 'light' ? { color: '#000000' } : undefined}
+                            className="leading-[1.7] font-sans"
+                            style={theme === 'light' ? { color: '#0f0f12' } : undefined}
                           >
-                            {trend}
+                            {implication}
                           </li>
                         ))}
                       </ul>
                     </div>
-                  </div>
+                  </aside>
                 )}
-              </div>
+              </section>
 
 
               {/* RELATED ARTICLES: same category first, fall back to other categories */}
@@ -849,9 +865,9 @@ export default function App() {
                 const related = findRelatedArticles(filteredArticles, activeArticle, 3);
                 if (related.length === 0) return null;
                 return (
-                  <div className="px-6 md:px-8 pt-8 border-t border-dashed border-black/15 dark:border-zinc-800">
+                  <div className="px-6 md:px-8 pt-8 border-t-2 border-black/15 dark:border-zinc-700">
                     <h4
-                      className="font-mono text-[11px] font-bold text-black/80 dark:text-zinc-400 tracking-[0.18em] uppercase mb-4"
+                      className="font-display text-lg sm:text-xl font-bold text-black dark:text-white mb-4"
                       style={theme === 'light' ? { color: '#000000' } : undefined}
                     >
                       More in {activeArticle.category}
@@ -888,7 +904,7 @@ export default function App() {
                 );
               })()}
               {/* Back to feed closing actions */}
-              <div className="border-t border-black dark:border-zinc-800 pt-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="border-t border-black dark:border-zinc-800 mt-10 pt-8 pb-2 flex flex-wrap items-center justify-between gap-x-8 gap-y-6">
                 {activeArticle.originalSourceUrl ? (
                   <a
                     id="source-redirect-btn"
@@ -922,7 +938,21 @@ export default function App() {
                   [ {t.backToHome} ]
                 </button>
               </div>
-            </motion.div>
+            
+              {/* Floating back-to-top button (visible after scrolling) */}
+              {showBackToTop && (
+                <button
+                  id="back-to-top-btn"
+                  onClick={() => articleScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+                  aria-label={t.backToTop}
+                  className="fixed bottom-6 right-6 z-30 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-black dark:bg-zinc-100 text-white dark:text-[#090a0f] shadow-lg hover:bg-zinc-800 dark:hover:bg-white transition-all active:scale-95 text-xs font-mono tracking-wider"
+                  style={theme === 'light' ? { backgroundColor: '#000000', color: '#ffffff' } : undefined}
+                >
+                  <ChevronUp className="h-3.5 w-3.5" />
+                  <span>{t.backToTop}</span>
+                </button>
+              )}
+</motion.div>
           )}
         </AnimatePresence>
       </main>

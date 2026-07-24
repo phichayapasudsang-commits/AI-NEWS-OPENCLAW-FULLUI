@@ -10,18 +10,25 @@
 
 export type Lang = "en" | "th";
 
-export type Category = "MCP" | "Agent" | "Memory" | "Research";
+// Plural category names to match the news taxonomy used by the pipeline
+// (Agents, Memory, MCP, Research). CATEGORIES list drives the filter UI
+// and the category badge color resolver.
+export type Category = "Agents" | "Memory" | "MCP" | "Research";
 
 export const CATEGORIES: ReadonlyArray<Category> = [
-  "MCP",
-  "Agent",
+  "Agents",
   "Memory",
+  "MCP",
   "Research",
 ];
 
 export type CategoryFilter = Category | "All";
 
-export interface HighlightBullet {
+/**
+ * A single structured bullet in the article body. `thailandRelevance` is
+ * an optional callout rendered as a sidebar block in the detail view.
+ */
+export interface SummaryBullet {
   title: string;
   desc: string;
   /** Optional Thailand-specific relevance callout. */
@@ -44,15 +51,13 @@ export interface UINewsArticle {
   snippetTh: string;
   executiveSummaryEn: string;
   executiveSummaryTh: string;
-  keyHighlightsEn: HighlightBullet[];
-  keyHighlightsTh: HighlightBullet[];
+  detailedBulletsEn: SummaryBullet[];
+  detailedBulletsTh: SummaryBullet[];
+  keyImplicationsEn: string[];
+  keyImplicationsTh: string[];
   originalSourceUrl?: string;
   imageUrl?: string | null;
-  trendsOverviewEn: string[];
-  trendsOverviewTh: string[];
-  /** Estimated read time in minutes (200 wpm). 0 if unknown. */
   readingTime: number;
-  /** One short, punchy sentence for the hero blockquote. */
   pullQuoteEn: string;
   pullQuoteTh: string;
 }

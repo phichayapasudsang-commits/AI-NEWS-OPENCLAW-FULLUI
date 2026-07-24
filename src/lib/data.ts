@@ -3,19 +3,19 @@
  *
  * Pipeline stores articles as flat columns (`title_en`, `body_en`, ...)
  * with `body_en` being a newline-joined bullet list starting with "- ".
- * The UI wants structured fields (executive summary, key highlights),
- * so we reshape here.
+ * The UI wants structured fields (executive summary, detailed bullets,
+ * key implications), so we reshape here.
  */
 import type {
   Category,
-  HighlightBullet,
+  SummaryBullet,
   RawArticleRow,
   UINewsArticle,
 } from "./types";
 
 const CATEGORY_SET: ReadonlySet<string> = new Set([
   "MCP",
-  "Agent",
+  "Agents",
   "Memory",
   "Research",
 ]);
@@ -24,7 +24,8 @@ const CATEGORY_SET: ReadonlySet<string> = new Set([
 function normalizeCategory(raw: string): Category {
   const c = (raw || "").trim().toLowerCase();
   if (c === "mcp") return "MCP";
-  if (c === "agent") return "Agent";
+  // Accept both "agent" and "agents" for resilience against schema drift.
+  if (c === "agent" || c === "agents") return "Agents";
   if (c === "memory") return "Memory";
   if (CATEGORY_SET.has(raw)) return raw as Category;
   return "Research";
@@ -58,6 +59,10 @@ export function parseBullets(body: string): string[] {
  *
  *   [TRENDS]
  *   - macro trend
+ *
+ * Map to UI field names:
+ *   HIGHLIGHTS  -> detailedBullets (structured with title/desc)
+ *   TRENDS      -> keyImplications  (plain strings)
  */
 export interface RichBody {
   executive: string;
@@ -85,14 +90,6 @@ export function parseRichBody(body: string): RichBody {
   const highlightsBuf: string[] = [];
   const trendsBuf: string[] = [];
 
-  const flushSection = () => {
-    if (section === "executive") {
-      // Collapse the executive paragraph to a single trimmed string.
-      // (Section body is reassembled externally when needed.)
-    }
-    section = null;
-  };
-
   for (const raw of lines) {
     const line = raw.trim();
     const m = line.match(/^\[(EXECUTIVE|HIGHLIGHTS|TRENDS)\]\s*$/i);
@@ -116,7 +113,6 @@ export function parseRichBody(body: string): RichBody {
       }
     }
   }
-  flushSection();
 
   return {
     executive: execBuf.join(" ").trim(),
@@ -139,34 +135,33 @@ export function toUINewsArticle(row: RawArticleRow): UINewsArticle {
   const executiveSummaryTh =
     richTh.executive || row.summary_th || "";
 
-  // Highlights: rich section wins; otherwise legacy bullet parsing.
-  const keyHighlightsEn = (richEn.highlights.length > 0
+  // HIGHLIGHTS section -> detailedBullets (structured with title/desc).
+  const detailedBulletsEn = (richEn.highlights.length > 0
     ? richEn.highlights
     : parseBullets(row.body_en)
-  ).map(toHighlight);
-  const keyHighlightsTh = (richTh.highlights.length > 0
+  ).map(toSummaryBullet);
+  const detailedBulletsTh = (richTh.highlights.length > 0
     ? richTh.highlights
     : parseBullets(row.body_th)
-  ).map(toHighlight);
+  ).map(toSummaryBullet);
 
-  // Trends: rich section only. Empty array keeps the modal clean for legacy rows.
-  // (Trends are plain strings in the UI model, not HighlightBullets.)
-  const trendsOverviewEn = richEn.trends;
-  const trendsOverviewTh = richTh.trends;
+  // TRENDS section -> keyImplications (plain strings).
+  const keyImplicationsEn = richEn.trends;
+  const keyImplicationsTh = richTh.trends;
 
   const readingTime = computeReadingTime(
     executiveSummaryEn,
-    keyHighlightsEn,
-    trendsOverviewEn,
+    detailedBulletsEn,
+    keyImplicationsEn,
   );
 
   const pullQuoteEn = extractPullQuote(
     executiveSummaryEn,
-    trendsOverviewEn,
+    keyImplicationsEn,
   );
   const pullQuoteTh = extractPullQuote(
     executiveSummaryTh,
-    trendsOverviewTh,
+    keyImplicationsTh,
   );
 
   return {
@@ -181,10 +176,10 @@ export function toUINewsArticle(row: RawArticleRow): UINewsArticle {
     snippetTh: trimForSnippet(row.summary_th),
     executiveSummaryEn,
     executiveSummaryTh,
-    keyHighlightsEn,
-    keyHighlightsTh,
-    trendsOverviewEn,
-    trendsOverviewTh,
+    detailedBulletsEn,
+    detailedBulletsTh,
+    keyImplicationsEn,
+    keyImplicationsTh,
     originalSourceUrl: row.original_url || undefined,
     imageUrl: row.image_url ?? undefined,
     readingTime,
@@ -212,7 +207,7 @@ function trimForSnippet(text: string, max = 220): string {
  * `desc` keeps the original full sentence. If the synthesized title is
  * identical to the line, we leave desc empty to avoid redundancy.
  */
-function toHighlight(line: string): HighlightBullet {
+function toSummaryBullet(line: string): SummaryBullet {
   if (!line) return { title: "", desc: "" };
   const separator = line.match(/^(.{3,80}?):\s+/) || line.match(/^(.{3,80}?)\s\u2014\s+/);
   if (separator && separator[1]) {
@@ -231,16 +226,16 @@ function toHighlight(line: string): HighlightBullet {
 /** Estimate reading time in whole minutes (200 wpm). Returns 0 for empty. */
 function computeReadingTime(
   exec: string,
-  highlights: HighlightBullet[],
-  trends: string[],
+  bullets: SummaryBullet[],
+  implications: string[],
 ): number {
   const parts: string[] = [];
   if (exec) parts.push(exec);
-  for (const h of highlights) {
-    parts.push(h.title || "");
-    parts.push(h.desc || "");
+  for (const b of bullets) {
+    parts.push(b.title || "");
+    parts.push(b.desc || "");
   }
-  for (const t of trends) parts.push(t);
+  for (const t of implications) parts.push(t);
   const words = parts.join(" ").split(/\s+/).filter(Boolean).length;
   if (words === 0) return 0;
   return Math.max(1, Math.round(words / 200));
@@ -250,19 +245,19 @@ function computeReadingTime(
  * Pick a single punchy sentence for the modal pull quote.
  *
  * Priority:
- *   1. The shortest trend that starts with a strong verb/noun
- *      (shifts, marks, signals, reveals, opens, becomes, rises, \u2026).
- *   2. Otherwise the first trend.
+ *   1. The shortest implication that starts with a strong verb/noun
+ *      (shifts, marks, signals, reveals, opens, becomes, rises, ...).
+ *   2. Otherwise the first implication.
  *   3. Otherwise the first sentence of the executive summary.
  *   4. Empty string when nothing is available.
  */
 function extractPullQuote(
   exec: string,
-  trends: string[],
+  implications: string[],
 ): string {
   const strong = /^(shifts?|marks?|signals?|reveals?|opens?|becomes?|rises?|replaces?|displaces?|emerges?|introduces?|enables?)/i;
-  if (trends.length > 0) {
-    const match = trends
+  if (implications.length > 0) {
+    const match = implications
       .filter((t) => t.length > 0 && t.length <= 180)
       .sort((a, b) => {
         const aStrong = strong.test(a) ? 0 : 1;
