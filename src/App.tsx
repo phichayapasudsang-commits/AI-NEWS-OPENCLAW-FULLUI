@@ -832,8 +832,8 @@ export default function App() {
               {/* IMPLICATIONS ZONE: trends moved to its own full-width section below Highlights */}
               {(lang === 'en' ? activeArticle.keyImplicationsEn : activeArticle.keyImplicationsTh).length > 0 && (
                 <section id="section-trends" className="px-6 md:px-8 pt-2 pb-2 scroll-mt-4">
-                  <div className="space-y-3 p-5 rounded-md bg-black/[0.04] dark:bg-white/[0.04] border-l-4 border-black/20 dark:border-zinc-700">
-                    <div className="flex items-center gap-2 pb-2 border-b border-black/10 dark:border-zinc-700">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
                       <h4
                         className="font-display text-xs sm:text-sm font-bold text-black dark:text-white"
                         style={theme === 'light' ? { color: '#000000' } : undefined}
