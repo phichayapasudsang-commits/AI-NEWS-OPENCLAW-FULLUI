@@ -87,6 +87,7 @@ const DICTIONARY = {
     close: 'ปิดหน้าต่าง',
     backToFeed: 'ข่าวทั้งหมด',
     backToHome: 'กลับหน้าหลัก',
+    readOriginalSource: 'อ่านแหล่งข้อมูลต้นฉบับ',
     implications: 'นัยสำคัญเชิงกลยุทธ์และผลกระทบตลาด',
     structuralDetails: 'โครงสร้างวิเคราะห์จุดต่อจุดโดยละเอียด',
     execSummary: 'บทสรุปผู้บริหาร',
@@ -661,8 +662,8 @@ export default function App() {
                 <button
                   id="close-back-btn"
                   onClick={() => setActiveArticle(null)}
-                  className="inline-flex items-center gap-1.5 text-sm font-mono text-black dark:text-zinc-200 hover:underline underline-offset-4 transition-all"
-                  style={theme === 'light' ? { color: '#000000' } : undefined}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-black dark:border-zinc-700 font-mono text-xs text-black dark:text-zinc-400 hover:text-black dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-all"
+                  style={theme === 'light' ? { color: '#000000', borderColor: '#000000' } : undefined}
                 >
                   <span aria-hidden="true">←</span>
                   <span>{t.backToFeed}</span>
@@ -719,9 +720,9 @@ export default function App() {
                 </h3>
               </div>
 
-              {/* META LINE: inline single line, tight against title, dashed separator below */}
-              <div className="px-6 md:px-8 pt-1 pb-3 text-[10px] sm:text-xs font-mono text-black/50 dark:text-zinc-500 tracking-wide border-b border-dashed border-black/30 dark:border-zinc-700"
-                style={theme === 'light' ? { color: '#5a5a60' } : undefined}
+              {/* META LINE: inline single line, tight against title, dashed separator below (content width) */}
+              <div className="px-6 md:px-8 pt-1 pb-4 text-[10px] sm:text-xs font-mono text-black/50 dark:text-zinc-500 tracking-wide"
+                style={theme === 'light' ? { color: '#5a5a60', borderBottom: '1px dashed rgba(0,0,0,0.3)' } : { borderBottom: '1px dashed rgba(255,255,255,0.3)' } }
               >
                 <span>{t.published}: {activeArticle.publishedDate}</span>
                 <span className="mx-2 opacity-50">—</span>
@@ -864,7 +865,8 @@ export default function App() {
                 const related = findRelatedArticles(filteredArticles, activeArticle, 3);
                 if (related.length === 0) return null;
                 return (
-                  <div className="px-6 md:px-8 pt-8 border-t-2 border-black/15 dark:border-zinc-700">
+                  <div className="pt-8 border-t border-solid border-black dark:border-zinc-700">
+                  <div className="px-6 md:px-8">
                     <h4
                       className="font-display text-xs sm:text-sm font-bold text-black dark:text-white mb-4"
                       style={theme === 'light' ? { color: '#000000' } : undefined}
@@ -899,6 +901,7 @@ export default function App() {
                         </button>
                       ))}
                     </div>
+                  </div>
                   </div>
                 );
               })()}
