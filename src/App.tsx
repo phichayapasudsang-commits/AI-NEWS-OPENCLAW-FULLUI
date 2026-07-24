@@ -57,8 +57,6 @@ const DICTIONARY = {
     implications: 'Key Implications & Strategic Takeaways',
     structuralDetails: 'Structured AI Breakdown',
     execSummary: 'Executive Summary',
-    keyHighlights: 'Key Highlights & Local Perspective',
-    trendsOverview: 'Strategic Trends & Outlook',
     thaiPerspectiveLabel: 'Thailand Relevance & Takeaway',
     noArticles: 'No summarized articles found matching your criteria.',
     languageToggle: 'Change to ภาษาไทย',
@@ -92,8 +90,6 @@ const DICTIONARY = {
     implications: 'นัยสำคัญเชิงกลยุทธ์และผลกระทบตลาด',
     structuralDetails: 'โครงสร้างวิเคราะห์จุดต่อจุดโดยละเอียด',
     execSummary: 'บทสรุปผู้บริหาร',
-    keyHighlights: 'ประเด็นข่าวเด่นและมุมมองในประเทศ',
-    trendsOverview: 'แนวโน้มเชิงกลยุทธ์และคาดการณ์',
     thaiPerspectiveLabel: 'มุมมองและการนำไปใช้ในไทย',
     noArticles: 'ไม่พบเรื่องข่าวย่อยที่ตรงกับเงื่อนไขการค้นหาของคุณ',
     languageToggle: 'สลับเป็น English',
@@ -784,7 +780,7 @@ export default function App() {
                       className="font-display text-lg sm:text-xl font-bold text-black dark:text-white"
                       style={theme === 'light' ? { color: '#000000' } : undefined}
                     >
-                      {t.keyHighlights}
+                      {t.structuralDetails}
                     </h4>
                   </div>
                   <ol className="space-y-6">
@@ -840,7 +836,7 @@ export default function App() {
                           className="font-display text-base sm:text-lg font-bold text-black dark:text-white"
                           style={theme === 'light' ? { color: '#000000' } : undefined}
                         >
-                          {t.trendsOverview}
+                          {t.implications}
                         </h4>
                       </div>
                       <ul className="space-y-3 text-sm sm:text-[15px] text-black/90 dark:text-zinc-200" id="trends-list">
