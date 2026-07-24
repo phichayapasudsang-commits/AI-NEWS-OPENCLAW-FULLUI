@@ -903,7 +903,7 @@ export default function App() {
                 );
               })()}
               {/* Back to feed closing actions */}
-              <div className="border-t border-black dark:border-zinc-800 mt-10 pt-8 pb-2 flex flex-wrap items-center justify-between gap-x-8 gap-y-6">
+              <div className="border-t border-dashed border-black/30 dark:border-zinc-700 mt-10 pt-8 pb-2 px-6 md:px-8 flex flex-wrap items-center justify-between gap-x-8 gap-y-6">
                 {activeArticle.originalSourceUrl ? (
                   <a
                     id="source-redirect-btn"
