@@ -751,20 +751,13 @@ export default function App() {
               {(lang === 'en' ? activeArticle.pullQuoteEn : activeArticle.pullQuoteTh) && (
                 <section className="px-6 md:px-8 pt-6">
                   <blockquote
-                    className="relative pl-5 border-l-4 border-[#0066cc] dark:border-emerald-400 max-w-[68ch]"
-                    style={theme === 'light' ? { borderColor: '#0066cc' } : undefined}
+                    className="relative max-w-[68ch]"
                   >
-                    <span
-                      className="absolute -left-1 -top-2 text-5xl leading-none font-display text-[#0066cc]/25 dark:text-emerald-400/30 select-none"
-                      aria-hidden="true"
-                    >
-                      &ldquo;
-                    </span>
                     <p
                       className="text-xs sm:text-sm font-display font-medium leading-snug text-black dark:text-white italic"
                       style={theme === 'light' ? { color: '#000000' } : undefined}
                     >
-                      {lang === 'en' ? activeArticle.pullQuoteEn : activeArticle.pullQuoteTh}
+                      &ldquo;{lang === 'en' ? activeArticle.pullQuoteEn : activeArticle.pullQuoteTh}&rdquo;
                     </p>
                   </blockquote>
                 </section>
