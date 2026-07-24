@@ -754,7 +754,7 @@ export default function App() {
                     className="relative max-w-[68ch]"
                   >
                     <p
-                      className="text-xs sm:text-sm font-display font-medium leading-snug text-black dark:text-white italic"
+                      className="text-sm sm:text-base font-display font-semibold leading-relaxed text-black dark:text-white"
                       style={theme === 'light' ? { color: '#000000' } : undefined}
                     >
                       &ldquo;{lang === 'en' ? activeArticle.pullQuoteEn : activeArticle.pullQuoteTh}&rdquo;
