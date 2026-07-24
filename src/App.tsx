@@ -826,7 +826,7 @@ export default function App() {
               {(lang === 'en' ? activeArticle.keyImplicationsEn : activeArticle.keyImplicationsTh).length > 0 && (
                 <section id="section-trends" className="px-6 md:px-8 pt-2 pb-2 scroll-mt-4">
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 pb-2 border-b-2 border-black/10 dark:border-zinc-700">
                       <h4
                         className="font-display text-xs sm:text-sm font-bold text-black dark:text-white"
                         style={theme === 'light' ? { color: '#000000' } : undefined}
