@@ -712,7 +712,7 @@ export default function App() {
               {/* TITLE (below image) */}
               <div className="px-6 md:px-8 pb-3">
                 <h3
-                  className="font-display font-bold tracking-tight leading-tight text-lg sm:text-xl md:text-2xl text-black dark:text-white"
+                  className="font-display font-bold tracking-tight leading-tight text-base sm:text-lg md:text-xl text-black dark:text-white"
                   style={theme === 'light' ? { color: '#000000' } : undefined}
                 >
                   {lang === 'en' ? activeArticle.titleEn : activeArticle.titleTh}
@@ -740,7 +740,7 @@ export default function App() {
               {/* LEDE ZONE: big executive summary, no heading label (just body) */}
               <section id="section-lede" className="px-6 md:px-8 pt-2 scroll-mt-4">
                 <p
-                  className="text-base leading-[1.7] font-sans font-medium text-black dark:text-zinc-50 max-w-[68ch]"
+                  className="text-xs sm:text-sm leading-relaxed font-sans font-normal text-black dark:text-zinc-50 max-w-[68ch]"
                   style={theme === 'light' ? { color: '#000000' } : undefined}
                 >
                   {lang === 'en' ? activeArticle.executiveSummaryEn : activeArticle.executiveSummaryTh}
@@ -761,7 +761,7 @@ export default function App() {
                       &ldquo;
                     </span>
                     <p
-                      className="text-base sm:text-lg font-display font-medium leading-snug text-black dark:text-white italic"
+                      className="text-xs sm:text-sm font-display font-medium leading-snug text-black dark:text-white italic"
                       style={theme === 'light' ? { color: '#000000' } : undefined}
                     >
                       {lang === 'en' ? activeArticle.pullQuoteEn : activeArticle.pullQuoteTh}
@@ -777,7 +777,7 @@ export default function App() {
                   <div className="flex items-center gap-2 pb-2 border-b-2 border-black/10 dark:border-zinc-700">
                     <Lightbulb className="h-5 w-5 text-[#0066cc] dark:text-emerald-400" />
                     <h4
-                      className="font-display text-sm sm:text-base font-bold text-black dark:text-white"
+                      className="font-display text-xs sm:text-sm font-bold text-black dark:text-white"
                       style={theme === 'light' ? { color: '#000000' } : undefined}
                     >
                       {t.structuralDetails}
@@ -791,20 +791,20 @@ export default function App() {
                         className="group relative pl-10 py-3 rounded-md hover:bg-black/[0.025] dark:hover:bg-white/[0.025] transition-colors"
                       >
                         <span
-                          className="absolute left-0 top-2 font-mono text-base font-bold leading-none text-[#0066cc]/30 dark:text-emerald-400/40 group-hover:text-[#0066cc] dark:group-hover:text-emerald-400 transition-colors select-none"
+                          className="absolute left-0 top-1 font-mono text-xs sm:text-sm font-bold leading-none text-[#0066cc]/30 dark:text-emerald-400/40 group-hover:text-[#0066cc] dark:group-hover:text-emerald-400 transition-colors select-none"
                           aria-hidden="true"
                         >
                           {String(idx + 1).padStart(2, '0')}
                         </span>
                         <h5
-                          className="text-sm sm:text-base font-bold text-black dark:text-white leading-snug mb-2"
+                          className="text-xs sm:text-sm font-bold text-black dark:text-white leading-snug mb-2"
                           style={theme === 'light' ? { color: '#000000' } : undefined}
                         >
                           {bullet.title}
                         </h5>
                         {bullet.desc && bullet.desc !== bullet.title && (
                           <p
-                            className="text-sm sm:text-[15px] text-black/85 dark:text-zinc-200 leading-[1.7] font-sans max-w-[68ch]"
+                            className="text-xs sm:text-sm text-black/85 dark:text-zinc-200 leading-relaxed font-sans max-w-[68ch]"
                             style={theme === 'light' ? { color: '#1f1f23' } : undefined}
                           >
                             {bullet.desc}
@@ -833,13 +833,13 @@ export default function App() {
                       <div className="flex items-center gap-2 pb-2 border-b border-black/10 dark:border-zinc-700">
                         <TrendingUp className="h-5 w-5 text-[#0066cc] dark:text-emerald-400" />
                         <h4
-                          className="font-display text-sm sm:text-base font-bold text-black dark:text-white"
+                          className="font-display text-xs sm:text-sm font-bold text-black dark:text-white"
                           style={theme === 'light' ? { color: '#000000' } : undefined}
                         >
                           {t.implications}
                         </h4>
                       </div>
-                      <ul className="space-y-3 text-sm sm:text-[15px] text-black/90 dark:text-zinc-200" id="trends-list">
+                      <ul className="space-y-3 text-xs sm:text-sm text-black/90 dark:text-zinc-200" id="trends-list">
                         {(lang === 'en' ? activeArticle.keyImplicationsEn : activeArticle.keyImplicationsTh).map((implication: string, idx: number) => (
                           <li
                             key={idx}
@@ -863,7 +863,7 @@ export default function App() {
                 return (
                   <div className="px-6 md:px-8 pt-8 border-t-2 border-black/15 dark:border-zinc-700">
                     <h4
-                      className="font-display text-sm sm:text-base font-bold text-black dark:text-white mb-4"
+                      className="font-display text-xs sm:text-sm font-bold text-black dark:text-white mb-4"
                       style={theme === 'light' ? { color: '#000000' } : undefined}
                     >
                       More in {activeArticle.category}
