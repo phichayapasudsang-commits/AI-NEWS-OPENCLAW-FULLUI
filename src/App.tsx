@@ -720,8 +720,8 @@ export default function App() {
               </div>
 
               {/* META LINE: inline single line */}
-              <div className="px-6 md:px-8 pt-2 pb-6 text-sm font-mono text-black/70 dark:text-zinc-400"
-                style={theme === 'light' ? { color: '#1f1f23' } : undefined}
+              <div className="px-6 md:px-8 pt-2 pb-6 text-[10px] sm:text-xs font-mono text-black/50 dark:text-zinc-500 tracking-wide"
+                style={theme === 'light' ? { color: '#5a5a60' } : undefined}
               >
                 <span>{t.published}: {activeArticle.publishedDate}</span>
                 <span className="mx-2 opacity-50">—</span>
