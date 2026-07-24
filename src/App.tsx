@@ -710,7 +710,7 @@ export default function App() {
               )}
 
               {/* TITLE (below image) */}
-              <div className="px-6 md:px-8 pb-3">
+              <div className="px-6 md:px-8 pb-1">
                 <h3
                   className="font-display font-bold tracking-tight leading-tight text-base sm:text-lg md:text-xl text-black dark:text-white"
                   style={theme === 'light' ? { color: '#000000' } : undefined}
@@ -719,8 +719,8 @@ export default function App() {
                 </h3>
               </div>
 
-              {/* META LINE: inline single line */}
-              <div className="px-6 md:px-8 pt-2 pb-6 text-[10px] sm:text-xs font-mono text-black/50 dark:text-zinc-500 tracking-wide"
+              {/* META LINE: inline single line, tight against title, dashed separator below */}
+              <div className="px-6 md:px-8 pt-1 pb-3 text-[10px] sm:text-xs font-mono text-black/50 dark:text-zinc-500 tracking-wide border-b border-dashed border-black/20 dark:border-zinc-700"
                 style={theme === 'light' ? { color: '#5a5a60' } : undefined}
               >
                 <span>{t.published}: {activeArticle.publishedDate}</span>
@@ -738,7 +738,7 @@ export default function App() {
               </div>
 
               {/* LEDE ZONE: big executive summary, no heading label (just body) */}
-              <section id="section-lede" className="px-6 md:px-8 pt-2 scroll-mt-4">
+              <section id="section-lede" className="px-6 md:px-8 pt-4 scroll-mt-4">
                 <p
                   className="text-xs sm:text-sm leading-relaxed font-sans font-normal text-black dark:text-zinc-50 max-w-[68ch]"
                   style={theme === 'light' ? { color: '#000000' } : undefined}
