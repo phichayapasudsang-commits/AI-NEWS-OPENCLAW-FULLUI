@@ -770,10 +770,9 @@ export default function App() {
                 </section>
               )}
 
-              {/* INSIGHTS ZONE: 2-col grid (highlights + trends) on desktop, stacked on mobile */}
-              <section id="section-highlights" className="px-6 md:px-8 pt-8 pb-2 grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6 scroll-mt-4">
-                {/* Highlights column (2/3 on desktop) */}
-                <div className="md:col-span-2 space-y-6">
+              {/* INSIGHTS ZONE: structured breakdown of the article */}
+              <section id="section-highlights" className="px-6 md:px-8 pt-8 pb-2 scroll-mt-4">
+                <div className="space-y-6">
                   <div className="flex items-center gap-2 pb-2 border-b-2 border-black/10 dark:border-zinc-700">
                     <Lightbulb className="h-5 w-5 text-[#0066cc] dark:text-emerald-400" />
                     <h4
@@ -827,33 +826,38 @@ export default function App() {
                 </div>
 
                 {/* Trends column (1/3 on desktop) */}
-                {(lang === 'en' ? activeArticle.keyImplicationsEn : activeArticle.keyImplicationsTh).length > 0 && (
-                  <aside id="section-trends" className="md:col-span-1 scroll-mt-4">
-                    <div className="md:sticky md:top-4 space-y-3 p-5 rounded-md bg-black/[0.04] dark:bg-white/[0.04] border-l-4 border-[#0066cc] dark:border-emerald-400">
-                      <div className="flex items-center gap-2 pb-2 border-b border-black/10 dark:border-zinc-700">
-                        <TrendingUp className="h-5 w-5 text-[#0066cc] dark:text-emerald-400" />
-                        <h4
-                          className="font-display text-xs sm:text-sm font-bold text-black dark:text-white"
-                          style={theme === 'light' ? { color: '#000000' } : undefined}
-                        >
-                          {t.implications}
-                        </h4>
-                      </div>
-                      <ul className="space-y-3 text-xs sm:text-sm text-black/90 dark:text-zinc-200" id="trends-list">
-                        {(lang === 'en' ? activeArticle.keyImplicationsEn : activeArticle.keyImplicationsTh).map((implication: string, idx: number) => (
-                          <li
-                            key={idx}
-                            className="leading-[1.7] font-sans"
-                            style={theme === 'light' ? { color: '#0f0f12' } : undefined}
-                          >
-                            {implication}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </aside>
-                )}
+                
               </section>
+
+              {/* IMPLICATIONS ZONE: trends moved to its own full-width section below Highlights */}
+              {(lang === 'en' ? activeArticle.keyImplicationsEn : activeArticle.keyImplicationsTh).length > 0 && (
+                <section id="section-trends" className="px-6 md:px-8 pt-2 pb-2 scroll-mt-4">
+                  <div className="space-y-3 p-5 rounded-md bg-black/[0.04] dark:bg-white/[0.04] border-l-4 border-[#0066cc] dark:border-emerald-400">
+                    <div className="flex items-center gap-2 pb-2 border-b border-black/10 dark:border-zinc-700">
+                      <TrendingUp className="h-5 w-5 text-[#0066cc] dark:text-emerald-400" />
+                      <h4
+                        className="font-display text-xs sm:text-sm font-bold text-black dark:text-white"
+                        style={theme === 'light' ? { color: '#000000' } : undefined}
+                      >
+                        {t.implications}
+                      </h4>
+                    </div>
+                    <ul className="space-y-3 text-xs sm:text-sm text-black/90 dark:text-zinc-200" id="trends-list">
+                      {(lang === 'en' ? activeArticle.keyImplicationsEn : activeArticle.keyImplicationsTh).map((implication: string, idx: number) => (
+                        <li
+                          key={idx}
+                          className="leading-[1.7] font-sans"
+                          style={theme === 'light' ? { color: '#0f0f12' } : undefined}
+                        >
+                          {implication}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </section>
+              )}
+
+
 
 
               {/* RELATED ARTICLES: same category first, fall back to other categories */}
