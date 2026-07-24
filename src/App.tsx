@@ -107,34 +107,41 @@ export default function App() {
     return saved === 'light' ? 'light' : 'dark'; // default to premium dark text-zinc-100
   });
 
-  // Track articles listing (allows local additions)
+  // Track articles listing. We read the last successful server snapshot
+  // from a *cache* key (separate from user-added entries) so stale data
+  // never bleeds into the live feed. We deliberately do NOT auto-save
+  // `articles` back to localStorage on every state change — that loop
+  // was the source of the "refresh still shows old data" bug. The cache
+  // is only written when a Supabase fetch succeeds.
   const [articles, setArticles] = useState<NewsArticle[]>(() => {
-    const saved = localStorage.getItem('agentic-news-list');
-    if (saved) {
+    // One-time migration: drop the legacy polluted key.
+    try { localStorage.removeItem('agentic-news-list'); } catch { /* ignore */ }
+    const cached = localStorage.getItem('agentic-news-cache');
+    if (cached) {
       try {
-        return JSON.parse(saved);
-      } catch (e) {
-        return ARTICLES_DATA;
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {
+        /* fall through */
       }
     }
-    return ARTICLES_DATA;
+    return [];
   });
-
-  // Save changes to articles list
-  useEffect(() => {
-    localStorage.setItem('agentic-news-list', JSON.stringify(articles));
-  }, [articles]);
 
   // Loading + error state for the initial Supabase fetch.
   const [isLoadingArticles, setIsLoadingArticles] = useState(true);
   const [articlesFetchError, setArticlesFetchError] = useState<string | null>(null);
 
   /**
-   * Pull the latest feed from Supabase. We snapshot localStorage first so
-   * user-added entries (with string ids) are never lost; server entries
-   * are tagged with a `srv-` prefix so they cannot collide with future
-   * user-added ids. Server wins on collisions; local-only entries are
-   * appended at the end.
+   * Pull the latest feed from Supabase. Server is authoritative — we
+   * REPLACE the in-memory list with the server snapshot on success
+   * (no merge, no merge-by-id). The previous merge logic compared
+   * `srv-${id}` strings against locally cached rows, so once stale
+   * data leaked into the cache, every refresh kept recycling it.
+   *
+   * On success we persist the snapshot to `agentic-news-cache` so the
+   * next cold load has something to show before the network call
+   * completes (offline-friendly without staleness risk).
    *
    * `silent: true` skips the loading spinner so background refreshes
    * (e.g. on tab focus) don't make the page flicker.
@@ -144,21 +151,27 @@ export default function App() {
     if (!silent) setIsLoadingArticles(true);
     setArticlesFetchError(null);
     try {
-      const savedRaw = localStorage.getItem('agentic-news-list');
-      const localArticles: NewsArticle[] = savedRaw ? JSON.parse(savedRaw) : ARTICLES_DATA;
-
       const serverArticles = await fetchArticles(50);
       const taggedServer: NewsArticle[] = serverArticles.map((a) => ({
         ...a,
         id: `srv-${a.id}`,
       }));
-      const seen = new Set(taggedServer.map((a) => String(a.id)));
-      const onlyLocal = localArticles.filter((a) => !seen.has(String(a.id)));
-      setArticles([...taggedServer, ...onlyLocal]);
+      setArticles(taggedServer);
+      try {
+        localStorage.setItem(
+          'agentic-news-cache',
+          JSON.stringify(taggedServer),
+        );
+      } catch (cacheErr) {
+        // localStorage quota / private mode — non-fatal, just log.
+        console.warn('[dashboard] cache write skipped:', cacheErr);
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error('[dashboard] Failed to fetch articles from Supabase:', msg);
       setArticlesFetchError(msg);
+      // Keep whatever's already in state (likely the cached snapshot);
+      // do NOT clear or fall back to ARTICLES_DATA on transient errors.
     } finally {
       if (!silent) setIsLoadingArticles(false);
     }
@@ -229,7 +242,7 @@ export default function App() {
           } else {
             setArticles(ARTICLES_DATA);
           }
-          localStorage.removeItem('agentic-news-list');
+          localStorage.removeItem('agentic-news-cache');
         }
       } catch (error) {
         console.error('Failed to reset database:', error);
