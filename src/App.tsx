@@ -787,13 +787,13 @@ export default function App() {
                       <li
                         id={"highlight-row-" + idx}
                         key={idx}
-                        className="group relative pl-12 pr-4 py-4 rounded-md border border-black/15 dark:border-zinc-800 bg-white dark:bg-[#111218]/40 hover:border-black dark:hover:border-zinc-600 hover:shadow-sm transition-all"
+                        className="group relative pl-10 pr-4 py-4 rounded-md border border-black/15 dark:border-zinc-800 bg-white dark:bg-[#111218]/40 hover:border-black dark:hover:border-zinc-600 hover:shadow-sm transition-all"
                       >
                         <span
-                          className="absolute left-0 top-1 font-mono text-xs sm:text-sm font-bold leading-none text-[#0066cc]/30 dark:text-emerald-400/40 group-hover:text-[#0066cc] dark:group-hover:text-emerald-400 transition-colors select-none"
+                          className="absolute left-3 top-1/2 -translate-y-1/2 font-display text-xl sm:text-2xl font-bold leading-none text-[#0066cc]/30 dark:text-emerald-400/40 group-hover:text-[#0066cc] dark:group-hover:text-emerald-400 transition-colors select-none"
                           aria-hidden="true"
                         >
-                          {String(idx + 1).padStart(2, '0')}
+                          &bull;
                         </span>
                         <h5
                           className="text-xs sm:text-sm font-bold text-black dark:text-white leading-snug mb-2"
