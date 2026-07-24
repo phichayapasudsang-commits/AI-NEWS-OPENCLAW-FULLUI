@@ -790,9 +790,11 @@ export default function App() {
                         className="group relative pl-10 pr-4 py-4 rounded-md border border-black/15 dark:border-zinc-800 bg-white dark:bg-[#111218]/40 hover:border-black dark:hover:border-zinc-600 hover:shadow-sm transition-all"
                       >
                         <span
-                          className="absolute left-3 top-1/2 -translate-y-1/2 block h-2.5 w-2.5 rounded-full border-[1.5px] border-black/50 bg-transparent dark:border-zinc-400/60 group-hover:border-black dark:group-hover:border-white group-hover:bg-black/5 dark:group-hover:bg-white/10 transition-colors select-none"
+                          className="absolute left-3 top-1/2 -translate-y-1/2 font-mono text-xs sm:text-sm font-bold leading-none text-black/70 dark:text-zinc-300 group-hover:text-black dark:group-hover:text-white transition-colors select-none tabular-nums"
                           aria-hidden="true"
-                        />
+                        >
+                          {idx + 1}
+                        </span>
                         <h5
                           className="text-xs sm:text-sm font-bold text-black dark:text-white leading-snug mb-2"
                           style={theme === 'light' ? { color: '#000000' } : undefined}
@@ -844,9 +846,15 @@ export default function App() {
                       {(lang === 'en' ? activeArticle.keyImplicationsEn : activeArticle.keyImplicationsTh).map((implication: string, idx: number) => (
                         <li
                           key={idx}
-                          className="leading-[1.7] font-sans"
+                          className="relative pl-5 leading-[1.7] font-sans"
                           style={theme === 'light' ? { color: '#0f0f12' } : undefined}
                         >
+                          <span
+                            className="absolute left-0 top-2.5 font-display text-base sm:text-lg font-bold leading-none text-black/70 dark:text-zinc-300 select-none"
+                            aria-hidden="true"
+                          >
+                            &bull;
+                          </span>
                           {implication}
                         </li>
                       ))}
