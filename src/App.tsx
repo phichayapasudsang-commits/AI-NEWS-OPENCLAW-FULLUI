@@ -843,7 +843,7 @@ export default function App() {
                           style={theme === 'light' ? { color: '#0f0f12' } : undefined}
                         >
                           <span
-                            className="absolute left-0 top-2.5 font-display text-base sm:text-lg font-bold leading-none text-black/70 dark:text-zinc-300 select-none"
+                            className="absolute left-0 top-0 font-display text-xs sm:text-sm font-bold leading-[1.7] text-black/70 dark:text-zinc-300 select-none"
                             aria-hidden="true"
                           >
                             &bull;
