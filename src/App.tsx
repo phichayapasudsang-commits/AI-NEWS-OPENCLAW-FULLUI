@@ -720,7 +720,7 @@ export default function App() {
               </div>
 
               {/* META LINE: inline single line, tight against title, dashed separator below */}
-              <div className="px-6 md:px-8 pt-1 pb-3 text-[10px] sm:text-xs font-mono text-black/50 dark:text-zinc-500 tracking-wide border-b border-dashed border-black/20 dark:border-zinc-700"
+              <div className="px-6 md:px-8 pt-1 pb-3 text-[10px] sm:text-xs font-mono text-black/50 dark:text-zinc-500 tracking-wide border-b border-dashed border-black/30 dark:border-zinc-700"
                 style={theme === 'light' ? { color: '#5a5a60' } : undefined}
               >
                 <span>{t.published}: {activeArticle.publishedDate}</span>
