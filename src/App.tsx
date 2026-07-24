@@ -790,11 +790,9 @@ export default function App() {
                         className="group relative pl-10 pr-4 py-4 rounded-md border border-black/15 dark:border-zinc-800 bg-white dark:bg-[#111218]/40 hover:border-black dark:hover:border-zinc-600 hover:shadow-sm transition-all"
                       >
                         <span
-                          className="absolute left-3 top-1/2 -translate-y-1/2 font-display text-xl sm:text-2xl font-bold leading-none text-[#0066cc]/30 dark:text-emerald-400/40 group-hover:text-[#0066cc] dark:group-hover:text-emerald-400 transition-colors select-none"
+                          className="absolute left-3 top-1/2 -translate-y-1/2 block h-2.5 w-2.5 rounded-full border-[1.5px] border-black/50 bg-transparent dark:border-zinc-400/60 group-hover:border-black dark:group-hover:border-white group-hover:bg-black/5 dark:group-hover:bg-white/10 transition-colors select-none"
                           aria-hidden="true"
-                        >
-                          &bull;
-                        </span>
+                        />
                         <h5
                           className="text-xs sm:text-sm font-bold text-black dark:text-white leading-snug mb-2"
                           style={theme === 'light' ? { color: '#000000' } : undefined}
